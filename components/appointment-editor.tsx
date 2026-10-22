@@ -113,7 +113,7 @@ export function AppointmentEditor({
         {busy ? "Guardando…" : initial ? "Guardar cambios" : "Crear cita"}
       </Button>
       {message && (
-        <p role="status" className="text-sm text-emerald-800">
+        <p role="status" className="text-sm text-brand-800">
           {message}
         </p>
       )}

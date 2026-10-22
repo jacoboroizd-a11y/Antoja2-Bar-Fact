@@ -308,7 +308,7 @@ export function DataTable({ rows, kind }: { rows: Row[]; kind: string }) {
                 <tr key={r.id}>
                   <td className="font-medium text-slate-800">
                     {href ? (
-                      <Link className="hover:text-emerald-700" href={href}>
+                      <Link className="hover:text-brand-700" href={href}>
                         {r.documentNumber ||
                           r.name ||
                           r.invoice?.documentNumber}
@@ -413,7 +413,7 @@ export function DataTable({ rows, kind }: { rows: Row[]; kind: string }) {
                     {href && (
                       <Link
                         href={href}
-                        className="text-xs font-medium text-emerald-700"
+                        className="text-xs font-medium text-brand-700"
                       >
                         Ver →
                       </Link>

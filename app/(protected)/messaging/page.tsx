@@ -73,7 +73,7 @@ export default async function Page({
               <Link
                 key={t.id}
                 href={`/messaging?thread=${t.id}`}
-                className={`block rounded-xl p-4 ${t.id === selected?.id ? "bg-emerald-50" : "hover:bg-white"}`}
+                className={`block rounded-xl p-4 ${t.id === selected?.id ? "bg-brand-50" : "hover:bg-white"}`}
               >
                 <strong className="text-sm">{t.name || t.contactId}</strong>
                 <p className="text-xs text-slate-600 mt-1">{t.channel}</p>
@@ -102,7 +102,7 @@ export default async function Page({
                   {messages.reverse().map((m) => (
                     <div
                       key={m.id}
-                      className={`max-w-[90%] p-3 rounded-2xl ${m.direction === "OUT" ? "ml-auto bg-emerald-50" : "bg-slate-50"}`}
+                      className={`max-w-[90%] p-3 rounded-2xl ${m.direction === "OUT" ? "ml-auto bg-brand-50" : "bg-slate-50"}`}
                     >
                       <p className="text-sm whitespace-pre-wrap break-words">
                         {m.text}

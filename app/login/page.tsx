@@ -1,11 +1,13 @@
+import Image from "next/image";
 import { LoginForm } from "@/components/login-form";
 export default function Login() {
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
-      <section className="hidden lg:flex bg-[#103c32] text-white p-16 flex-col justify-between">
+      <section className="hidden lg:flex bg-[#4b1125] text-white p-16 flex-col justify-between">
         <div className="text-xl font-semibold tracking-tight">
-          <div className="bg-white/95 rounded-2xl px-5 py-4 w-fit">
-            <span className="text-3xl font-semibold text-emerald-900">
+          <div className="flex items-center gap-5">
+            <Image src="/brand/antoja2.png" alt="Logo Antoja2" width={100} height={100} className="rounded-2xl" preload />
+            <span className="text-3xl font-semibold text-white">
               Antoja2{" "}
               <small className="block text-xs mt-2 tracking-widest">
                 BAR & RESTAURANTE
@@ -14,7 +16,7 @@ export default function Login() {
           </div>
         </div>
         <div>
-          <span className="text-emerald-300 text-sm">
+          <span className="text-brand-300 text-sm">
             HECHO PARA TU EMPRESA
           </span>
           <h1 className="text-5xl font-semibold leading-tight mt-5 max-w-lg">
@@ -22,11 +24,11 @@ export default function Login() {
             <br />
             Tu negocio en orden.
           </h1>
-          <p className="text-emerald-100/70 mt-6 max-w-md leading-relaxed">
+          <p className="text-brand-100/70 mt-6 max-w-md leading-relaxed">
             Mesas, órdenes, cocina e inventario desde un solo lugar. Con el
             control que tu empresa necesita para crecer.
           </p>
-          <div className="mt-12 border-t border-white/15 pt-6 text-sm text-emerald-100/70">
+          <div className="mt-12 border-t border-white/15 pt-6 text-sm text-brand-100/70">
             Nicaragua · Córdobas y dólares · Información segura
           </div>
         </div>
@@ -36,8 +38,9 @@ export default function Login() {
       </section>
       <section className="flex items-center justify-center p-8">
         <div className="w-full max-w-sm">
-          <div className="lg:hidden text-2xl font-bold mb-12 text-emerald-800">
-            <span className="text-3xl font-semibold text-emerald-900">
+          <div className="lg:hidden flex items-center gap-4 text-2xl font-bold mb-10 text-brand-800">
+            <Image src="/brand/antoja2.png" alt="Logo Antoja2" width={72} height={72} className="rounded-xl" />
+            <span className="text-3xl font-semibold text-brand-900">
               Antoja2{" "}
               <small className="block text-xs mt-2 tracking-widest">
                 BAR & RESTAURANTE

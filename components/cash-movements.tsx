@@ -146,7 +146,7 @@ export function CashMovements({
             <article key={m.id} className="py-4 border-b last:border-0">
               <div className="flex justify-between gap-3">
                 <strong>{m.reason}</strong>
-                <strong className="text-emerald-800">
+                <strong className="text-brand-800">
                   {formatMoney(m.amount, m.currency)}
                 </strong>
               </div>

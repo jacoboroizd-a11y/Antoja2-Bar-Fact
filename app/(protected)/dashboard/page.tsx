@@ -150,7 +150,7 @@ export default async function Dashboard() {
         <section className="panel p-5">
           <div className="flex justify-between items-center mb-4">
             <h2 className="font-semibold">Últimos tratamientos facturados</h2>
-            <Link href="/sessions" className="text-xs text-emerald-700">
+            <Link href="/sessions" className="text-xs text-brand-700">
               Ver seguimiento
             </Link>
           </div>
@@ -164,7 +164,7 @@ export default async function Dashboard() {
                 <Link
                   key={item.id}
                   href={`/invoices/${item.invoiceId}`}
-                  className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-white/60 border border-slate-100 hover:bg-emerald-50/60 transition-colors"
+                  className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-white/60 border border-slate-100 hover:bg-brand-50/60 transition-colors"
                 >
                   <div>
                     <p className="text-sm font-medium">{item.description}</p>
@@ -199,7 +199,7 @@ export default async function Dashboard() {
                 className="block py-4 border-b border-slate-100 last:border-0"
               >
                 <p className="text-sm font-medium">{invoice.customer.name}</p>
-                <p className="text-xs text-emerald-700 mt-2">
+                <p className="text-xs text-brand-700 mt-2">
                   {appointmentLabel(invoice.nextAppointment!.toISOString())}
                 </p>
               </Link>
@@ -222,8 +222,8 @@ export default async function Dashboard() {
                 Documentos emitidos · {a.currency}
               </p>
             </div>
-            <span className="text-xs text-emerald-700 flex gap-1 items-center">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <span className="text-xs text-brand-700 flex gap-1 items-center">
+              <span className="h-2 w-2 rounded-full bg-brand-500" />
               Ventas
             </span>
           </div>
@@ -244,7 +244,7 @@ export default async function Dashboard() {
                   <p className="text-xs text-slate-500">
                     Últimos {d.days} días
                   </p>
-                  <ArrowUpRight size={16} className="text-emerald-600" />
+                  <ArrowUpRight size={16} className="text-brand-600" />
                 </div>
                 <p className="text-xl font-semibold mt-2">
                   {formatMoney(d.total, a.currency)}
@@ -259,7 +259,7 @@ export default async function Dashboard() {
           <h2 className="text-sm font-semibold">Facturas recientes</h2>
           <Link
             href="/invoices"
-            className="text-xs text-emerald-700 flex items-center gap-2"
+            className="text-xs text-brand-700 flex items-center gap-2"
           >
             Ver todas
             <ArrowRight size={13} />
@@ -282,7 +282,7 @@ export default async function Dashboard() {
                 <tr key={i.id}>
                   <td>
                     <Link
-                      className="font-medium text-emerald-800"
+                      className="font-medium text-brand-800"
                       href={"/invoices/" + i.id}
                     >
                       {i.documentNumber}

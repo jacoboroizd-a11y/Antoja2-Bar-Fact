@@ -222,9 +222,9 @@ export function ClinicSale({ options }: { options: Options }) {
   if (saved)
     return (
       <div>
-        <div className="no-print panel p-6 mb-6 flex flex-wrap items-center justify-between gap-4 bg-emerald-50">
+        <div className="no-print panel p-6 mb-6 flex flex-wrap items-center justify-between gap-4 bg-brand-50">
           <div className="flex gap-3 items-center">
-            <CheckCircle2 className="text-emerald-700" size={32} />
+            <CheckCircle2 className="text-brand-700" size={32} />
             <div>
               <h1 className="text-xl font-semibold">Factura guardada</h1>
               <p className="text-sm text-slate-500 mt-1">
@@ -279,7 +279,7 @@ export function ClinicSale({ options }: { options: Options }) {
     <div>
       <div className="mb-7 flex flex-wrap justify-between gap-4 items-center">
         <div>
-          <p className="text-xs font-semibold tracking-widest text-emerald-700 mb-2">
+          <p className="text-xs font-semibold tracking-widest text-brand-700 mb-2">
             CLÍNICA Y COSMÉTICOS
           </p>
           <h1 className="text-3xl font-semibold tracking-tight">
@@ -332,7 +332,7 @@ export function ClinicSale({ options }: { options: Options }) {
                     key={t.id}
                     aria-pressed={category === t.id}
                     onClick={() => setCategory(t.id)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${category === t.id ? "bg-emerald-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${category === t.id ? "bg-brand-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
                   >
                     {t.label}
                   </button>
@@ -342,7 +342,7 @@ export function ClinicSale({ options }: { options: Options }) {
             {cart.length > 0 && (
               <a
                 href="#invoice-checkout"
-                className="xl:hidden flex justify-between items-center rounded-xl bg-emerald-700 text-white px-4 py-3 mb-4 text-sm font-medium"
+                className="xl:hidden flex justify-between items-center rounded-xl bg-brand-700 text-white px-4 py-3 mb-4 text-sm font-medium"
               >
                 <span>Ver factura · {cart.length} artículos</span>
                 <span>{formatMoney(totals.total, currency)}</span>
@@ -367,10 +367,10 @@ export function ClinicSale({ options }: { options: Options }) {
                     onClick={() => add(p)}
                     disabled={p.type === "PRODUCT" && !p.stock}
                     aria-label={`Agregar ${p.name}`}
-                    className="panel p-3 sm:p-5 min-w-0 text-left hover:border-emerald-500 hover:shadow-md transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="panel p-3 sm:p-5 min-w-0 text-left hover:border-brand-500 hover:shadow-md transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div
-                      className={`rounded-2xl h-12 sm:h-20 flex items-center justify-center mb-4 ${isPackage ? "bg-emerald-50 text-emerald-700" : p.type === "SERVICE" ? "bg-emerald-50 text-emerald-700" : "bg-emerald-50 text-emerald-700"}`}
+                      className={`rounded-2xl h-12 sm:h-20 flex items-center justify-center mb-4 ${isPackage ? "bg-brand-50 text-brand-700" : p.type === "SERVICE" ? "bg-brand-50 text-brand-700" : "bg-brand-50 text-brand-700"}`}
                     >
                       <Icon size={36} strokeWidth={1.5} />
                     </div>
@@ -385,7 +385,7 @@ export function ClinicSale({ options }: { options: Options }) {
                       {p.name}
                     </h2>
                     <div className="mt-4 flex items-center justify-between">
-                      <span className="text-lg font-semibold text-emerald-800">
+                      <span className="text-lg font-semibold text-brand-800">
                         {formatMoney(unitPrice(p), currency)}
                         {p.pricingMode === "PER_UNIT" && (
                           <span className="block text-xs font-normal">
@@ -393,7 +393,7 @@ export function ClinicSale({ options }: { options: Options }) {
                           </span>
                         )}
                       </span>
-                      <span className="rounded-full bg-emerald-50 text-emerald-700 p-2 group-hover:bg-emerald-700 group-hover:text-white">
+                      <span className="rounded-full bg-brand-50 text-brand-700 p-2 group-hover:bg-brand-700 group-hover:text-white">
                         <Plus size={18} />
                       </span>
                     </div>
@@ -418,7 +418,7 @@ export function ClinicSale({ options }: { options: Options }) {
             </div>
             {!shown.length && (
               <div className="panel p-10 text-center">
-                <Sparkles className="mx-auto text-emerald-600 mb-4" size={32} />
+                <Sparkles className="mx-auto text-brand-600 mb-4" size={32} />
                 <h2 className="font-semibold">
                   {options.products.length
                     ? "No hay coincidencias"
@@ -447,7 +447,7 @@ export function ClinicSale({ options }: { options: Options }) {
                 }}
               />
               {customer ? (
-                <div className="flex items-center justify-between text-sm rounded-lg bg-emerald-50 text-emerald-800 p-3 mt-3">
+                <div className="flex items-center justify-between text-sm rounded-lg bg-brand-50 text-brand-800 p-3 mt-3">
                   <span>Cliente existente: {customer.name}</span>
                   <button
                     type="button"
@@ -479,7 +479,7 @@ export function ClinicSale({ options }: { options: Options }) {
                             setClientName(c.name || "");
                             setPhone(c.phone || "");
                           }}
-                          className="w-full text-left p-3 hover:bg-emerald-50 text-sm"
+                          className="w-full text-left p-3 hover:bg-brand-50 text-sm"
                         >
                           <span className="font-medium">{c.name}</span>
                           <span className="ml-2 text-slate-400">
@@ -543,7 +543,7 @@ export function ClinicSale({ options }: { options: Options }) {
                       </button>
                     </div>
                     {p.type === "SERVICE" && (
-                      <p className="text-xs text-emerald-700 mt-1">
+                      <p className="text-xs text-brand-700 mt-1">
                         {p.pricingMode === "PER_UNIT"
                           ? 1
                           : (p.sessions || 1) * item.quantity}{" "}
@@ -622,12 +622,12 @@ export function ClinicSale({ options }: { options: Options }) {
             )}
             <div className="flex justify-between items-center">
               <span className="font-semibold">Total</span>
-              <strong className="text-3xl text-emerald-800">
+              <strong className="text-3xl text-brand-800">
                 {formatMoney(totals.total, currency)}
               </strong>
             </div>
             {advances.length > 0 && (
-              <section className="rounded-xl bg-emerald-50 p-4 space-y-3">
+              <section className="rounded-xl bg-brand-50 p-4 space-y-3">
                 <h3 className="font-semibold text-sm">
                   Aplicar adelantos disponibles
                 </h3>

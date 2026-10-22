@@ -27,7 +27,7 @@ export function InlinePayment({
     return (
       <div
         id="cobrar"
-        className="panel p-5 mt-6 no-print flex items-center gap-3 text-emerald-800"
+        className="panel p-5 mt-6 no-print flex items-center gap-3 text-brand-800"
       >
         <CheckCircle2 size={24} />
         <p className="font-semibold">

@@ -105,7 +105,7 @@ export function SendDocument({
         </Button>
       </div>
       {message && (
-        <p role="status" className="text-sm text-emerald-800">
+        <p role="status" className="text-sm text-brand-800">
           {message}
         </p>
       )}

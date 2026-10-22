@@ -42,7 +42,7 @@ export default async function SessionsPage({
   return (
     <div>
       <div className="mb-7">
-        <p className="text-xs font-semibold tracking-widest text-emerald-700 mb-2">
+        <p className="text-xs font-semibold tracking-widest text-brand-700 mb-2">
           SEGUIMIENTO
         </p>
         <h1 className="text-3xl font-semibold">Sesiones y citas</h1>
@@ -58,7 +58,7 @@ export default async function SessionsPage({
           placeholder="Buscar por nombre del cliente…"
           className="flex-1 outline-none text-sm"
         />
-        <button className="text-emerald-700 font-medium text-sm">Buscar</button>
+        <button className="text-brand-700 font-medium text-sm">Buscar</button>
       </form>
       <div className="space-y-5">
         {invoices.map((invoice) => (
@@ -78,13 +78,13 @@ export default async function SessionsPage({
               </div>
               <Link
                 href={`/invoices/${invoice.id}`}
-                className="flex items-center gap-2 text-sm text-emerald-700"
+                className="flex items-center gap-2 text-sm text-brand-700"
               >
                 Ver factura / abonar <ArrowRight size={15} />
               </Link>
             </div>
             {invoice.nextAppointment && (
-              <p className="flex items-center gap-2 text-sm text-emerald-800 mb-4">
+              <p className="flex items-center gap-2 text-sm text-brand-800 mb-4">
                 <CalendarDays size={16} />
                 {appointmentLabel(invoice.nextAppointment)}
               </p>

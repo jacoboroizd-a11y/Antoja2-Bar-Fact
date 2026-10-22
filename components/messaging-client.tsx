@@ -13,7 +13,7 @@ export function MessagingClient({
     [message, setMessage] = useState("");
   return (
     <details className="my-4">
-      <summary className="cursor-pointer text-sm text-emerald-800">
+      <summary className="cursor-pointer text-sm text-brand-800">
         Guardar como cliente
       </summary>
       <form

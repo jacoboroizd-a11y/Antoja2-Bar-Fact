@@ -1,5 +1,11 @@
 # Antoja2 POS · Bar & restaurante
 
+**Aplicación pública:** [antoja2-pos.vercel.app](https://antoja2-pos.vercel.app/login)
+
+Proyecto Vercel `antoja2-pos`, conectado a `main`. PostgreSQL Neon independiente
+de la clínica, con plan gratuito. El build aplica migraciones por la conexión
+directa `DATABASE_URL_UNPOOLED`; la aplicación usa `DATABASE_URL` con pool.
+
 Evolución de `jacoboroizd-a11y/MariaraulFacturacion` (main,
 `e7acffbf28006ac9a3daa2637c1ff5fa466a08e9`). Reutiliza autenticación,
 membresías, estilos, componentes, cálculos con Decimal, facturación, secuencias,
@@ -129,8 +135,12 @@ necesario en una nueva instancia. Cada tarea cloud ya está aislada: usar el
 checkout existente y no crear worktrees salvo petición expresa.
 
 En Vercel configurar `DATABASE_URL`, `AUTH_SECRET` y `APP_URL` del nuevo POS, aplicar
-migraciones y aprovisionar usuarios en la base de destino. Esta implementación
-local no publica ni modifica los sitios de la clínica.
+migraciones y aprovisionar usuarios en la base de destino. El proyecto está desplegado en Vercel. Los sitios de la clínica permanecen separados.
 
 Ver [decisiones de adaptación](docs/adaptacion-bar.md) y
 [referencias de POS y límites de integración](docs/referencias-pos.md).
+
+En el primer despliegue, `POS_BOOTSTRAP_OWNER=1` y `POS_BOOTSTRAP_DEMO=1`
+aprovisionan cuentas y datos aislados con contraseñas suministradas como secretos
+en Vercel. Después de inicializar se retiran esas variables y contraseñas del
+build; los siguientes despliegues preservan usuarios y datos existentes.

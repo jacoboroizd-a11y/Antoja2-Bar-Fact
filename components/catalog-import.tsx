@@ -86,7 +86,7 @@ export function CatalogImport({
                   : "/plantilla-catalogo.xlsx"
             }
             download
-            className="inline-flex items-center gap-2 font-medium text-emerald-800"
+            className="inline-flex items-center gap-2 font-medium text-brand-800"
           >
             <FileSpreadsheet size={18} />
             Descargar plantilla Excel

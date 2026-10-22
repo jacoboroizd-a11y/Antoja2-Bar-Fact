@@ -3,6 +3,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 export const metadata: Metadata = {
   title: "Antoja2 · Bar & restaurante",
+  icons: { icon: "/brand/antoja2.png", apple: "/apple-icon.png" },
   appleWebApp: { capable: true, title: "Antoja2", statusBarStyle: "default" },
   formatDetection: { telephone: false },
   description: "Órdenes, mesas, menú, inventario y caja por jornada operativa.",
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#506c60",
+  themeColor: "#701c35",
 };
 export default function RootLayout({
   children,

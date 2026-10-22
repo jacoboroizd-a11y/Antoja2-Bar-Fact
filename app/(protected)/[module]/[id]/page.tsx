@@ -407,7 +407,7 @@ export default async function DetailPage({
           </div>
         )}
       {module === "quotes" && row.invoice && (
-        <p className="mt-5 text-sm text-emerald-700">
+        <p className="mt-5 text-sm text-brand-700">
           <Link href={"/invoices/" + row.invoice.id}>
             Ver factura {row.invoice.documentNumber} →
           </Link>
@@ -436,7 +436,7 @@ export default async function DetailPage({
                     <td>
                       <Link
                         href={"/receipts/" + p.receipt?.id}
-                        className="text-emerald-700"
+                        className="text-brand-700"
                       >
                         {p.receipt?.documentNumber}
                       </Link>

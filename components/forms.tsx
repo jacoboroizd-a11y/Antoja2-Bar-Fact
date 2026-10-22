@@ -59,7 +59,7 @@ function Fields({
             <input
               id={prefix + f.key}
               type="checkbox"
-              className="h-5 w-5 accent-emerald-700"
+              className="h-5 w-5 accent-brand-700"
               {...register(f.key)}
             />
           ) : (
@@ -397,7 +397,7 @@ export function SettingsForm({ company }: { company: CompanyView }) {
             }}
           />
           {logo && (
-            <p className="mt-2 text-xs text-emerald-700">
+            <p className="mt-2 text-xs text-brand-700">
               Logo configurado{" "}
               <button
                 type="button"

@@ -15,22 +15,22 @@ const styles = StyleSheet.create({
     padding: 36,
     fontFamily: "Helvetica",
     fontSize: 10,
-    color: "#243c35",
+    color: "#421c2c",
   },
   row: { flexDirection: "row", justifyContent: "space-between" },
   header: {
     borderBottomWidth: 1,
-    borderBottomColor: "#d9e2de",
+    borderBottomColor: "#ead8df",
     paddingBottom: 16,
     marginBottom: 16,
   },
-  muted: { color: "#6b7c75", fontSize: 8, lineHeight: 1.5 },
+  muted: { color: "#806574", fontSize: 8, lineHeight: 1.5 },
   title: { fontSize: 22, fontFamily: "Helvetica-Bold", marginBottom: 8 },
   company: { fontSize: 13, fontFamily: "Helvetica-Bold", marginBottom: 8 },
   table: { marginTop: 20 },
   tableHeader: {
     flexDirection: "row",
-    backgroundColor: "#edf4f0",
+    backgroundColor: "#fbecf1",
     padding: 8,
     fontFamily: "Helvetica-Bold",
     fontSize: 8,
@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     padding: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#edf1ef",
+    borderBottomColor: "#f1e6eb",
   },
   description: { width: "33%", paddingRight: 6 },
   cell: { width: "13.4%", textAlign: "right" },
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Helvetica-Bold",
     borderTopWidth: 1,
-    borderTopColor: "#d9e2de",
+    borderTopColor: "#ead8df",
     paddingTop: 10,
     marginTop: 5,
   },
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     bottom: 22,
     left: 36,
     right: 36,
-    color: "#8a9a92",
+    color: "#9b7e8b",
     fontSize: 7,
     flexDirection: "row",
     justifyContent: "space-between",
@@ -160,7 +160,7 @@ export async function pdfDocument(row: Row, kind: string) {
           <View
             style={[
               styles.section,
-              { padding: 20, backgroundColor: "#edf4f0" },
+              { padding: 20, backgroundColor: "#fbecf1" },
             ]}
           >
             <Text>Monto recibido</Text>
@@ -301,7 +301,7 @@ export async function pdfDocument(row: Row, kind: string) {
           <View
             style={[
               styles.section,
-              { padding: 14, backgroundColor: "#edf4f0" },
+              { padding: 14, backgroundColor: "#fbecf1" },
             ]}
             wrap={false}
           >

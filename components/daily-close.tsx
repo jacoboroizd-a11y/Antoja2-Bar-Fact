@@ -121,7 +121,7 @@ export async function DailyClose({ ctx }: { ctx: Context; day?: string }) {
         }}
       />
       <details>
-        <summary className="cursor-pointer text-sm font-medium text-emerald-800 mb-4">
+        <summary className="cursor-pointer text-sm font-medium text-brand-800 mb-4">
           Ver pagos del día ({payments.length})
         </summary>
         <DataTable kind="payments" rows={serialize(payments)} />

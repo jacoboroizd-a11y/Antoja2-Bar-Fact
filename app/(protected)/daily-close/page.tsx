@@ -27,7 +27,7 @@ export default async function Page({
             key={key}
             href={`/daily-close?tab=${key}`}
             aria-current={tab === key ? "page" : undefined}
-            className={`rounded-xl px-4 py-3 text-sm font-medium ${tab === key ? "bg-emerald-100 text-emerald-900" : "panel"}`}
+            className={`rounded-xl px-4 py-3 text-sm font-medium ${tab === key ? "bg-brand-100 text-brand-900" : "panel"}`}
           >
             {label}
           </Link>

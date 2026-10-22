@@ -78,7 +78,7 @@ export function CashCloseForm({
     >
       <h3 className="font-semibold">Contar efectivo y entregar cierre</h3>
       <Link
-        className="block text-sm text-emerald-800 underline"
+        className="block text-sm text-brand-800 underline"
         href="/daily-close?tab=expenses"
       >
         Registrar o revisar salidas de efectivo
@@ -150,7 +150,7 @@ export function CashCloseForm({
                   Esperado: <strong>{formatMoney(expected, currency)}</strong>
                 </p>
                 <p
-                  className={`text-sm font-semibold ${decimal(difference).isZero() ? "text-emerald-700" : "text-amber-800"}`}
+                  className={`text-sm font-semibold ${decimal(difference).isZero() ? "text-brand-700" : "text-amber-800"}`}
                 >
                   Diferencia: {formatMoney(difference, currency)}
                   {values.counted !== "" && decimal(difference).isZero()
@@ -179,7 +179,7 @@ export function CashCloseForm({
       {saved ? (
         <div
           role="status"
-          className="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-900"
+          className="rounded-xl bg-brand-50 p-4 text-sm text-brand-900"
         >
           Cierre entregado para revisión. Diferencia NIO:{" "}
           {formatMoney(saved.NIO.difference, "NIO")} · USD:{" "}

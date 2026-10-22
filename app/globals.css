@@ -1,5 +1,16 @@
 @import "tailwindcss";
 @theme inline {
+  --color-brand-50: #fff2f4;
+  --color-brand-100: #fce4e9;
+  --color-brand-200: #f4c4d0;
+  --color-brand-300: #e595ac;
+  --color-brand-400: #cc5d7e;
+  --color-brand-500: #ad355b;
+  --color-brand-600: #912645;
+  --color-brand-700: #701c35;
+  --color-brand-800: #5b172c;
+  --color-brand-900: #431322;
+  --color-brand-950: #2c0916;
   --font-sans:
     ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -15,14 +26,14 @@
   }
   :root {
     color-scheme: light;
-    --background: #f4f7f6;
-    --foreground: #203a35;
+    --background: #fbf6f7;
+    --foreground: #321b23;
   }
   body {
     min-height: 100vh;
     background:
-      radial-gradient(ellipse at 0% 0%, #dcefe7 0, transparent 45%),
-      radial-gradient(ellipse at 100% 30%, #eee8f6 0, transparent 40%),
+      radial-gradient(ellipse at 0% 0%, #f3dce4 0, transparent 45%),
+      radial-gradient(ellipse at 100% 30%, #f5e8e8 0, transparent 40%),
       var(--background);
     background-attachment: fixed;
     color: var(--foreground);
@@ -33,7 +44,7 @@
   textarea {
     width: 100%;
     min-height: 44px;
-    border: 1px solid #dce5e1;
+    border: 1px solid #e7d6dc;
     border-radius: 12px;
     background-color: rgba(255, 255, 255, 0.85);
     padding: 11px 14px;
@@ -54,12 +65,12 @@
   }
   select option {
     background: #fff;
-    color: #203a35;
+    color: #321b23;
   }
   select:focus,
   textarea:focus {
-    border-color: #388c72;
-    box-shadow: 0 0 0 3px #d4eae0;
+    border-color: #912645;
+    box-shadow: 0 0 0 3px #f7dfe7;
   }
   input[type="date"],
   input[type="datetime-local"] {
@@ -76,7 +87,7 @@
     display: block;
     font-size: 12px;
     font-weight: 600;
-    color: #50675f;
+    color: #76525f;
     margin-bottom: 8px;
   }
   button,
@@ -87,7 +98,7 @@
   button:focus-visible,
   a:focus-visible,
   summary:focus-visible {
-    outline: 2px solid #39856d;
+    outline: 2px solid #912645;
     outline-offset: 4px;
   }
   h1,
@@ -101,7 +112,7 @@
     border-radius: 22px;
     background: rgba(255, 255, 255, 0.82);
     box-shadow:
-      0 6px 28px #24453608,
+      0 6px 28px #47182a0a,
       inset 0 1px 0 #ffffff;
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -110,29 +121,29 @@
     background: rgba(255, 255, 255, 0.76);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    border-color: rgba(216, 228, 221, 0.65);
+    border-color: rgba(233, 215, 222, 0.65);
   }
   .table th {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #71837b;
+    color: #8a6875;
     font-weight: 600;
     padding: 16px 18px;
     text-align: left;
-    background: #f4f8f680;
+    background: #fcf3f680;
     white-space: nowrap;
   }
   .table td {
     padding: 17px 18px;
-    border-top: 1px solid #eaf0ed;
+    border-top: 1px solid #f0e5e9;
     font-size: 13px;
   }
   .table tbody tr {
     transition: background-color 0.16s ease;
   }
   .table tbody tr:hover {
-    background: #edf6f180;
+    background: #faf0f480;
   }
   .filter-controls {
     display: grid;
@@ -174,7 +185,7 @@
   }
   body {
     background: white;
-    color: #182a2a;
+    color: #321b23;
   }
   .panel {
     border: 0;

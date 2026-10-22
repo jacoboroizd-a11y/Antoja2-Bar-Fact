@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process";
-function run(command, args) {
+function run(command, args, environment = {}) {
   const result = spawnSync(command, args, {
     stdio: "inherit",
-    env: process.env,
+    env: { ...process.env, ...environment },
   });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status || 1);
@@ -12,7 +12,10 @@ run("npm", ["run", "db:generate"]);
 // migration lock; failed migrations stop publication rather than serving a broken POS.
 if (!process.env.DATABASE_URL)
   throw new Error("Configura DATABASE_URL antes de desplegar.");
-run("npm", ["run", "db:migrate"]);
+// Session advisory locks must use a direct connection, never a transaction pooler.
+run("npm", ["run", "db:migrate"], {
+  DATABASE_URL: process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL,
+});
 if (process.env.POS_BOOTSTRAP_DEMO === "1") {
   if (!process.env.SEED_ADMIN_PASSWORD || !process.env.SEED_BILLING_PASSWORD)
     throw new Error("Faltan las contraseñas de usuarios de demostración.");

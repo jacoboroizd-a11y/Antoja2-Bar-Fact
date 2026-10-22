@@ -31,7 +31,7 @@ export function ClientImport() {
       <a
         href="/plantilla-clientes.xlsx"
         download
-        className="text-sm underline text-emerald-800"
+        className="text-sm underline text-brand-800"
       >
         Descargar plantilla de clientes
       </a>

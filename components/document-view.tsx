@@ -44,7 +44,7 @@ export function DocumentView({ row, kind }: { row: Row; kind: string }) {
           <h2 className="text-xl font-semibold">
             {receipt ? "RECIBO" : kind === "quotes" ? "COTIZACIÓN" : "FACTURA"}
           </h2>
-          <p className="text-sm text-emerald-800 font-medium mt-2">
+          <p className="text-sm text-brand-800 font-medium mt-2">
             {row.documentNumber}
           </p>
           <div className="mt-3">
@@ -88,8 +88,8 @@ export function DocumentView({ row, kind }: { row: Row; kind: string }) {
         </div>
       </div>
       {receipt ? (
-        <div className="rounded-xl bg-emerald-50 p-6">
-          <p className="text-sm text-emerald-800">Monto recibido</p>
+        <div className="rounded-xl bg-brand-50 p-6">
+          <p className="text-sm text-brand-800">Monto recibido</p>
           <p className="text-3xl font-semibold mt-3">
             {formatMoney(row.payment!.amount!, currency)}
           </p>
@@ -187,7 +187,7 @@ export function DocumentView({ row, kind }: { row: Row; kind: string }) {
                   <span>Pagado</span>
                   <span>{formatMoney(doc.amountPaid || 0, currency)}</span>
                 </div>
-                <div className="flex justify-between bg-emerald-50 p-3 rounded-lg font-semibold text-emerald-800">
+                <div className="flex justify-between bg-brand-50 p-3 rounded-lg font-semibold text-brand-800">
                   <span>Saldo pendiente</span>
                   <span>{formatMoney(doc.balanceDue || 0, currency)}</span>
                 </div>
@@ -224,8 +224,8 @@ export function DocumentView({ row, kind }: { row: Row; kind: string }) {
           </div>
         )}
         {doc.nextAppointment && (
-          <div className="mt-6 rounded-xl bg-emerald-50 p-5">
-            <p className="text-xs font-semibold uppercase text-emerald-700">
+          <div className="mt-6 rounded-xl bg-brand-50 p-5">
+            <p className="text-xs font-semibold uppercase text-brand-700">
               Próxima cita
             </p>
             <p className="mt-2 font-semibold">

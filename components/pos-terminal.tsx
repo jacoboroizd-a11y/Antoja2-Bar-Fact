@@ -102,7 +102,7 @@ export function PosTerminal({ ctx, s }: { ctx: Context; s: Snapshot }) {
       )}
       <div className="flex flex-wrap justify-between gap-3 items-center">
         <div>
-          <p className="text-xs font-semibold text-emerald-700 uppercase tracking-widest">
+          <p className="text-xs font-semibold text-brand-700 uppercase tracking-widest">
             Antoja2 POS
           </p>
           <h1 className="text-2xl font-semibold mt-1">Tomar orden</h1>
@@ -197,7 +197,7 @@ export function PosTerminal({ ctx, s }: { ctx: Context; s: Snapshot }) {
           </>
         )}
         <span
-          className={`rounded-full px-3 py-2 text-xs ${s.day ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"}`}
+          className={`rounded-full px-3 py-2 text-xs ${s.day ? "bg-brand-100 text-brand-800" : "bg-amber-100 text-amber-900"}`}
         >
           {s.day
             ? "Jornada " + s.day.date.slice(0, 10)
@@ -273,7 +273,7 @@ export function PosTerminal({ ctx, s }: { ctx: Context; s: Snapshot }) {
                   Boolean(order?.payments.length) ||
                   (p.trackStock && Number(p.stock) <= 0)
                 }
-                className="panel text-left overflow-hidden hover:border-emerald-600 disabled:opacity-50 min-h-36 flex flex-col"
+                className="panel text-left overflow-hidden hover:border-brand-600 disabled:opacity-50 min-h-36 flex flex-col"
                 onClick={() => selectProduct(p)}
               >
                 {p.image ? (
@@ -284,7 +284,7 @@ export function PosTerminal({ ctx, s }: { ctx: Context; s: Snapshot }) {
                     }}
                   />
                 ) : (
-                  <div className="h-16 bg-emerald-50/80 text-emerald-700 flex items-center justify-center">
+                  <div className="h-16 bg-brand-50/80 text-brand-700 flex items-center justify-center">
                     {p.kind === "DRINK" ? (
                       <Wine />
                     ) : p.kind === "FOOD" ? (
@@ -303,7 +303,7 @@ export function PosTerminal({ ctx, s }: { ctx: Context; s: Snapshot }) {
                         p.presentation ||
                         p.category.name}
                   </p>
-                  <p className="font-semibold text-emerald-800 mt-3">
+                  <p className="font-semibold text-brand-800 mt-3">
                     {formatMoney(p.product.price)}
                   </p>
                 </div>
@@ -312,7 +312,7 @@ export function PosTerminal({ ctx, s }: { ctx: Context; s: Snapshot }) {
           </div>
           {!shown.length && (
             <div className="panel p-10 text-center">
-              <UtensilsCrossed className="mx-auto text-emerald-600 mb-3" />
+              <UtensilsCrossed className="mx-auto text-brand-600 mb-3" />
               <p className="font-semibold">Tu menú comienza aquí</p>
               <p className="text-sm text-slate-500 mt-2">
                 Agregá tus bebidas, platos y promociones desde Menú. Las
@@ -445,7 +445,7 @@ export function PosTerminal({ ctx, s }: { ctx: Context; s: Snapshot }) {
             <p className="text-sm text-slate-500 mt-2">
               {product.product.description}
             </p>
-            <p className="font-semibold text-emerald-800 mt-3">
+            <p className="font-semibold text-brand-800 mt-3">
               {formatMoney(product.product.price)} + extras e impuestos, si
               aplica
             </p>
@@ -457,7 +457,7 @@ export function PosTerminal({ ctx, s }: { ctx: Context; s: Snapshot }) {
                   className="flex gap-3 items-center border rounded-xl p-3 min-h-12 text-sm"
                 >
                   <input
-                    className="w-5 h-5 accent-emerald-700"
+                    className="w-5 h-5 accent-brand-700"
                     type="checkbox"
                     checked={choices.includes(c.key)}
                     onChange={(e) =>

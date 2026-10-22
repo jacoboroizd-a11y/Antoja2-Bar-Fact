@@ -124,7 +124,7 @@ export function BarReports({ report: r }: { report: Report }) {
     <div className="space-y-6">
       <div className="flex flex-wrap justify-between gap-4">
         <div>
-          <p className="text-xs text-emerald-700 font-semibold uppercase tracking-widest">
+          <p className="text-xs text-brand-700 font-semibold uppercase tracking-widest">
             Antoja2 POS · Control del negocio
           </p>
           <h1 className="text-3xl font-semibold mt-2">

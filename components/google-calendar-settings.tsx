@@ -93,7 +93,7 @@ export function GoogleCalendarSettings({ connected }: { connected: boolean }) {
         </Button>
       </form>
       <details className="mt-4">
-        <summary className="text-sm text-emerald-700 cursor-pointer">
+        <summary className="text-sm text-brand-700 cursor-pointer">
           Conectar un ICS público o compartido
         </summary>
         <ol className="list-decimal pl-5 space-y-2 mt-3 text-sm text-slate-500">

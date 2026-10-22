@@ -104,7 +104,7 @@ function Pill({
 }) {
   return (
     <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${tone === "amber" ? "bg-amber-100 text-amber-900" : tone === "red" ? "bg-red-100 text-red-800" : "bg-emerald-100 text-emerald-900"}`}
+      className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${tone === "amber" ? "bg-amber-100 text-amber-900" : tone === "red" ? "bg-red-100 text-red-800" : "bg-brand-100 text-brand-900"}`}
     >
       {children}
     </span>
@@ -337,7 +337,7 @@ export function BarWorkspace({
           <button
             key={o.id}
             onClick={() => setSelected(o.id)}
-            className="panel p-5 text-left hover:border-emerald-600"
+            className="panel p-5 text-left hover:border-brand-600"
           >
             <div className="flex justify-between">
               <strong>Orden #{o.number}</strong>
@@ -374,7 +374,7 @@ export function BarWorkspace({
       )}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold tracking-widest text-emerald-700 uppercase mb-2">
+          <p className="text-xs font-semibold tracking-widest text-brand-700 uppercase mb-2">
             Antoja2 · Bar & restaurante
           </p>
           <h1 className="text-3xl font-semibold">{labels[view]}</h1>
@@ -535,7 +535,7 @@ export function BarWorkspace({
                       o ? setSelected(o.id) : create(t.id, "TABLE")
                     }
                   >
-                    <UtensilsCrossed className="text-emerald-700 mb-4" />
+                    <UtensilsCrossed className="text-brand-700 mb-4" />
                     <strong className="text-lg">{t.name}</strong>
                     <p className="text-xs text-slate-500 mt-2">
                       {t.seats} personas
@@ -1359,12 +1359,12 @@ export function BarWorkspace({
             role="dialog"
             aria-modal="true"
             aria-label={"Orden " + selectedOrder.number}
-            className="w-full max-w-3xl bg-[#f4f7f6] overflow-y-auto p-5 sm:p-8 shadow-xl"
+            className="w-full max-w-3xl bg-[#fbf6f7] overflow-y-auto p-5 sm:p-8 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center">
               <div>
-                <p className="text-xs text-emerald-700">
+                <p className="text-xs text-brand-700">
                   {serviceLabel(selectedOrder)}{" "}
                   {selectedOrder.table?.name || ""} ·{" "}
                   {selectedOrder.responsibleName}
@@ -1480,7 +1480,7 @@ export function BarWorkspace({
                           }
                         >
                           <span>{p.product.name}</span>
-                          <span className="text-emerald-700">
+                          <span className="text-brand-700">
                             {formatMoney(p.product.price)}
                           </span>
                         </Button>
@@ -1782,7 +1782,7 @@ export function BarWorkspace({
                       {formatMoney(p.amount)}
                     </span>
                     <a
-                      className="text-emerald-700"
+                      className="text-brand-700"
                       href={"/api/pdf/receipts/" + p.payment.receipt?.id}
                       target="_blank"
                       rel="noreferrer"
@@ -1814,7 +1814,7 @@ export function BarWorkspace({
               <div className="flex flex-wrap gap-3">
                 {selectedOrder.dispatches.map((d, i) => (
                   <Link
-                    className="text-sm text-emerald-700 underline"
+                    className="text-sm text-brand-700 underline"
                     key={d.id}
                     href={"/bar/print/kitchen/" + d.id}
                   >

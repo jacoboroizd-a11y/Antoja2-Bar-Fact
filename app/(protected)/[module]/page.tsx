@@ -133,7 +133,7 @@ export default async function Module({
                     </span>
                   </div>
                   <Link
-                    className="text-xs text-emerald-700"
+                    className="text-xs text-brand-700"
                     href={"/taxes/" + t.id}
                   >
                     Editar
@@ -141,7 +141,7 @@ export default async function Module({
                 </div>
               ))}
               <details className="mt-5" open={taxes.length === 0}>
-                <summary className="cursor-pointer rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+                <summary className="cursor-pointer rounded-xl bg-brand-50 px-4 py-3 text-sm font-medium text-brand-800">
                   Agregar impuesto
                 </summary>
                 <div className="mt-4">
@@ -160,14 +160,14 @@ export default async function Module({
                   {u.user?.id !== ctx.userId ? (
                     <MemberControls row={u} />
                   ) : (
-                    <p className="text-xs text-emerald-700">
+                    <p className="text-xs text-brand-700">
                       Administrador · Tu cuenta
                     </p>
                   )}
                 </div>
               ))}
               <details className="mt-5">
-                <summary className="cursor-pointer text-sm text-emerald-700">
+                <summary className="cursor-pointer text-sm text-brand-700">
                   Crear usuario
                 </summary>
                 <div className="mt-4">
@@ -177,7 +177,7 @@ export default async function Module({
             </div>
             <Link
               href="/audit"
-              className="panel p-5 flex justify-between items-center text-sm text-emerald-800"
+              className="panel p-5 flex justify-between items-center text-sm text-brand-800"
             >
               Ver historial de auditoría
               <ArrowRight size={16} />
@@ -227,7 +227,7 @@ export default async function Module({
               key={tab.href}
               href={tab.href}
               aria-current={tab.active ? "page" : undefined}
-              className={`rounded-xl px-4 py-3 text-sm ${tab.active ? "bg-emerald-100 text-emerald-900 font-semibold" : "text-slate-600 hover:bg-white"}`}
+              className={`rounded-xl px-4 py-3 text-sm ${tab.active ? "bg-brand-100 text-brand-900 font-semibold" : "text-slate-600 hover:bg-white"}`}
             >
               {tab.label}
             </Link>
@@ -249,11 +249,11 @@ export default async function Module({
                   <Link
                     href={`/products/${p.id}`}
                     key={p.id}
-                    className="panel p-6 hover:border-emerald-500 transition-colors"
+                    className="panel p-6 hover:border-brand-500 transition-colors"
                   >
                     <div className="flex justify-between items-center">
                       <span
-                        className={`p-4 rounded-2xl ${p.type === "PRODUCT" ? "bg-emerald-50 text-emerald-700" : "bg-emerald-50 text-emerald-700"}`}
+                        className={`p-4 rounded-2xl ${p.type === "PRODUCT" ? "bg-brand-50 text-brand-700" : "bg-brand-50 text-brand-700"}`}
                       >
                         <Icon size={28} />
                       </span>
@@ -266,7 +266,7 @@ export default async function Module({
                       </span>
                     </div>
                     <h2 className="font-semibold text-lg mt-5">{p.name}</h2>
-                    <p className="text-emerald-800 text-xl font-semibold mt-3">
+                    <p className="text-brand-800 text-xl font-semibold mt-3">
                       {formatMoney(p.price || "0", p.currency)}
                       {p.pricingMode === "PER_UNIT" && (
                         <span className="text-xs font-normal"> / {p.unit}</span>

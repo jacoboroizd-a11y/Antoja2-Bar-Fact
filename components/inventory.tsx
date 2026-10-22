@@ -36,7 +36,7 @@ export function Inventory({
     <div>
       <div className="flex flex-wrap justify-between items-center gap-4 mb-7">
         <div>
-          <p className="text-xs font-semibold tracking-widest text-emerald-700 mb-2">
+          <p className="text-xs font-semibold tracking-widest text-brand-700 mb-2">
             COSMÉTICOS
           </p>
           <h2 className="text-xl font-semibold">Cosméticos</h2>
@@ -86,7 +86,7 @@ export function Inventory({
                 <Package size={24} />
               </div>
               <span
-                className={`text-xs px-3 py-1 rounded-full ${(p.stock || 0) === 0 ? "bg-red-50 text-red-600" : (p.stock || 0) <= 5 ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}
+                className={`text-xs px-3 py-1 rounded-full ${(p.stock || 0) === 0 ? "bg-red-50 text-red-600" : (p.stock || 0) <= 5 ? "bg-amber-50 text-amber-700" : "bg-brand-50 text-brand-700"}`}
               >
                 {!p.stock
                   ? "Agotado"
@@ -100,12 +100,12 @@ export function Inventory({
               {p.sku}
               {!p.active ? " · Inactivo" : ""}
             </p>
-            <p className="mt-3 text-lg font-semibold text-emerald-800">
+            <p className="mt-3 text-lg font-semibold text-brand-800">
               {formatMoney(p.price || "0", p.currency)}
             </p>
             <Link
               href={`/products/${p.id}`}
-              className="text-xs text-emerald-700 underline underline-offset-4"
+              className="text-xs text-brand-700 underline underline-offset-4"
             >
               Ver ficha y precio
             </Link>
@@ -160,7 +160,7 @@ export function Inventory({
                 <td>{m.name}</td>
                 <td
                   className={
-                    m.quantity > 0 ? "text-emerald-700" : "text-rose-600"
+                    m.quantity > 0 ? "text-brand-700" : "text-rose-600"
                   }
                 >
                   {m.quantity > 0 ? "+" : ""}
@@ -170,7 +170,7 @@ export function Inventory({
                 <td>
                   {m.invoiceId ? (
                     <Link
-                      className="text-emerald-700"
+                      className="text-brand-700"
                       href={`/invoices/${m.invoiceId}`}
                     >
                       {m.reason}

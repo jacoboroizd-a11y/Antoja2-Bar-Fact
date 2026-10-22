@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -111,14 +112,16 @@ export function Shell({
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
-        <div className="h-20 flex items-center px-7 text-2xl font-bold tracking-tight text-[#163d33]">
+        <div className="h-20 flex items-center px-7 text-2xl font-bold tracking-tight text-[#431322]">
           <Link
             href="/bar"
             onClick={() => setOpen(false)}
             aria-label="Ir al inicio"
+            className="flex items-center gap-3"
           >
+            <Image src="/brand/antoja2.png" alt="Logo Antoja2" width={44} height={44} className="rounded-lg shrink-0" />
             <span className="text-2xl font-semibold tracking-tight">
-              Antoja<span className="text-emerald-600">2</span>
+              Antoja<span className="text-brand-600">2</span>
               <span className="block text-[10px] tracking-[0.2em] uppercase text-slate-500">
                 Bar & restaurante
               </span>
@@ -133,7 +136,7 @@ export function Shell({
           </button>
         </div>
         <div className="mx-4 mb-5 rounded-lg border border-slate-200 p-3 flex items-center gap-3">
-          <div className="h-8 w-8 bg-emerald-50 text-emerald-800 rounded-md flex items-center justify-center font-semibold">
+          <div className="h-8 w-8 bg-brand-50 text-brand-800 rounded-md flex items-center justify-center font-semibold">
             {ctx.companyName.charAt(0)}
           </div>
           <div className="min-w-0">
@@ -160,7 +163,7 @@ export function Shell({
                           ? pathname === "/bar"
                           : pathname.startsWith(n.href)
                       )
-                        ? "bg-emerald-100/70 text-emerald-900 font-semibold shadow-sm"
+                        ? "bg-brand-100/70 text-brand-900 font-semibold shadow-sm"
                         : "text-slate-500 hover:bg-slate-50",
                     )}
                   >
@@ -195,7 +198,7 @@ export function Shell({
                         ? pathname === "/bar"
                         : pathname.startsWith(n.href)
                     )
-                      ? "bg-emerald-100/70 text-emerald-900 font-semibold shadow-sm"
+                      ? "bg-brand-100/70 text-brand-900 font-semibold shadow-sm"
                       : "text-slate-500 hover:bg-slate-50",
                   )}
                 >
@@ -207,7 +210,7 @@ export function Shell({
         </nav>
         <div className="mt-auto p-4 shrink-0">
           <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-500 flex gap-2 items-center">
-            <ShieldCheck size={16} className="text-emerald-600" />
+            <ShieldCheck size={16} className="text-brand-600" />
             Sesión segura · {ctx.role}
           </div>
           <button
@@ -287,7 +290,7 @@ export function Shell({
               </Button>
             )}
             <div
-              className="w-8 h-8 rounded-full bg-[#e9eee9] text-emerald-900 text-xs font-bold flex items-center justify-center"
+              className="w-8 h-8 rounded-full bg-[#f4e5e9] text-brand-900 text-xs font-bold flex items-center justify-center"
               title={ctx.name}
             >
               {ctx.name

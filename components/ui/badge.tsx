@@ -5,7 +5,7 @@ export function Badge({ status }: { status: string }) {
       className={cn(
         "inline-flex rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap",
         ["PAID", "ACCEPTED", "CONVERTED", "Activo"].includes(status)
-          ? "bg-emerald-50 text-emerald-700"
+          ? "bg-brand-50 text-brand-700"
           : ["OVERDUE", "REJECTED", "VOID", "EXPIRED", "Inactivo"].includes(
                 status,
               )

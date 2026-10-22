@@ -86,7 +86,7 @@ export default async function Page({
               {currency === "NIO" ? "Córdobas" : "Dólares"}
             </h2>
             <p className="text-sm mt-4">Ventas facturadas</p>
-            <p className="text-2xl text-emerald-800 font-semibold">
+            <p className="text-2xl text-brand-800 font-semibold">
               {formatMoney(data.sales[currency] || "0", currency)}
             </p>
             <div className="space-y-2 mt-4 text-sm">
@@ -163,7 +163,7 @@ export default async function Page({
                           Contado: {value("counted")} · Diferencia:{" "}
                           {value("difference")}
                         </p>
-                        <p className="font-semibold text-emerald-800">
+                        <p className="font-semibold text-brand-800">
                           Queda para mañana: {value("remaining")}
                         </p>
                       </div>

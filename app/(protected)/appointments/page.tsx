@@ -92,7 +92,7 @@ export default async function Page({
         </p>
       )}
       <details className="panel p-5 mb-6">
-        <summary className="font-semibold text-emerald-800 cursor-pointer">
+        <summary className="font-semibold text-brand-800 cursor-pointer">
           Crear una cita
         </summary>
         <div className="mt-5">
@@ -120,11 +120,11 @@ export default async function Page({
               <Link
                 key={day}
                 href={`/appointments?month=${month}&day=${day}`}
-                className={`rounded-xl p-2 sm:p-4 min-h-16 text-center ${selected === day ? "bg-emerald-100 text-emerald-900" : "bg-white/60 hover:bg-emerald-50"}`}
+                className={`rounded-xl p-2 sm:p-4 min-h-16 text-center ${selected === day ? "bg-brand-100 text-brand-900" : "bg-white/60 hover:bg-brand-50"}`}
               >
                 <span>{i + 1}</span>
                 {count > 0 && (
-                  <span className="block text-xs text-emerald-700 mt-1">
+                  <span className="block text-xs text-brand-700 mt-1">
                     {count} citas
                   </span>
                 )}
@@ -141,7 +141,7 @@ export default async function Page({
           .filter((a) => !selected || dayOf(a.start) === selected)
           .map((a) => (
             <section key={a.id} className="panel p-5">
-              <p className="text-sm text-emerald-800 font-medium">
+              <p className="text-sm text-brand-800 font-medium">
                 {appointmentLabel(a.start.toISOString())}
               </p>
               <h3 className="text-lg font-semibold mt-2">{a.title}</h3>
@@ -154,7 +154,7 @@ export default async function Page({
                     : "Cita local · Google sin enlazar"}
               </p>
               <details className="mt-4">
-                <summary className="cursor-pointer text-sm text-emerald-800">
+                <summary className="cursor-pointer text-sm text-brand-800">
                   Mover o editar cita
                 </summary>
                 <div className="mt-4">
@@ -172,7 +172,7 @@ export default async function Page({
           )
           .map((e: { id: string; start: string; title: string }) => (
             <section key={e.id} className="panel p-5">
-              <p className="text-sm text-emerald-800">
+              <p className="text-sm text-brand-800">
                 {appointmentLabel(e.start)}
               </p>
               <h3 className="font-semibold mt-2">{e.title}</h3>

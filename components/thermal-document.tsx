@@ -2,6 +2,7 @@
 import { useSyncExternalStore, useState, useRef } from "react";
 import { flushSync } from "react-dom";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "./ui/button";
 import { formatMoney, decimal } from "@/lib/money";
 type ThermalData = {
@@ -124,6 +125,7 @@ export function ThermalDocument({ data: d }: { data: ThermalData }) {
         }}
       >
         <div className="text-center">
+          {!kitchen && <Image unoptimized src="/brand/antoja2.png" alt="Antoja2" width={56} height={56} className="mx-auto mb-2 grayscale" />}
           <h2 className="text-lg font-bold">{d.companyName}</h2>
           <p className="font-bold mt-2">
             {kitchen ? "*** COMANDA COCINA ***" : "FACTURA RESTAURANTE"}
