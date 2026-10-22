@@ -2,6 +2,7 @@ import "dotenv/config";
 import { hash } from "bcryptjs";
 import { randomUUID } from "node:crypto";
 import { writeFile, mkdir } from "node:fs/promises";
+import { barClock } from "../lib/bar-time";
 import { db } from "../server/db";
 import { barCommand } from "../server/bar";
 import type { Context } from "../server/auth";
@@ -129,9 +130,7 @@ async function main() {
       new Date(new Date(date + "T23:59:00-06:00").getTime() + 36 * 60000),
     );
   }
-  const date = new Date(new Date().getTime() - 6 * 3600000)
-    .toISOString()
-    .slice(0, 10);
+  const date = barClock().date;
   let open = await db.businessDay.findFirst({
     where: { companyId: company.id, status: "OPEN" },
   });
@@ -206,12 +205,14 @@ async function main() {
         },
       });
   }
-  await mkdir("/workspace/.cloud", { recursive: true, mode: 0o700 });
-  await writeFile(
-    "/workspace/.cloud/Antoja2-demo-acceso.txt",
-    `Antoja2 POS — Demo separada\nUsuario: admin@antoja2.invalid\nContraseña: ${process.env.SEED_ADMIN_PASSWORD}\nDatos ficticios en septiembre y octubre de 2026.\nReportes sugeridos: diario 2026-10-19 y mensual 2026-10.\nLa cuenta original admin pertenece a otra empresa y no comparte estas ventas.\nUsuarios empleados demo: encargado.demo, caja.demo, mesero.demo, cocina.demo, consulta.demo.\nContraseña de empleados demo: ${staffPassword}\n`,
-    { mode: 0o600 },
-  );
+  if (process.env.VERCEL !== "1") {
+    await mkdir("/workspace/.cloud", { recursive: true, mode: 0o700 });
+    await writeFile(
+      "/workspace/.cloud/Antoja2-demo-acceso.txt",
+      `Antoja2 POS — Demo separada\nUsuario: admin@antoja2.invalid\nContraseña: ${process.env.SEED_ADMIN_PASSWORD}\nDatos ficticios en septiembre y octubre de 2026.\nReportes sugeridos: diario 2026-10-19 y mensual 2026-10.\nLa cuenta original admin pertenece a otra empresa y no comparte estas ventas.\nUsuarios empleados demo: encargado.demo, caja.demo, mesero.demo, cocina.demo, consulta.demo.\nContraseña de empleados demo: ${staffPassword}\n`,
+      { mode: 0o600 },
+    );
+  }
   console.log(
     "Demo preparada: menú personalizable, 4 jornadas con pagos mixtos, medianoche, comandas y diferencias de caja. Datos originales preservados.",
   );

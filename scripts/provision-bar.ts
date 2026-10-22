@@ -9,7 +9,10 @@ async function main() {
     console.log("Empresa y administrador originales existentes: preservados.");
     return;
   }
-  const password = randomBytes(18).toString("base64url");
+  const password =
+    process.env.INITIAL_ADMIN_PASSWORD || randomBytes(18).toString("base64url");
+  if (password.length < 12 || Buffer.byteLength(password, "utf8") > 72)
+    throw new Error("INITIAL_ADMIN_PASSWORD debe tener entre 12 y 72 bytes.");
   if (await db.user.findUnique({ where: { username: "admin" } }))
     throw new Error(
       "El usuario admin ya existe. Revisa la membresía antes de aprovisionar.",
@@ -83,14 +86,16 @@ async function main() {
         },
       });
   });
-  await mkdir("/workspace/.cloud", { recursive: true, mode: 0o700 });
-  await writeFile(
-    "/workspace/.cloud/Antoja2-acceso.txt",
-    `Antoja2 POS — Acceso del administrador principal\n\nUsuario: admin\nContraseña inicial: ${password}\nRol: ADMIN\nEmpresa: Antoja2 Bar & Restaurante\n\nAcceso creado en este entorno de desarrollo. No está publicado en Vercel.\nIngresá desde /login del despliegue de Antoja2 cuando se publique.\nLa web de la clínica no se modificó.\nCambiá tu contraseña desde Configuración > Mi contraseña.\nConservá este archivo de forma privada; no lo subas al repositorio.\n`,
-    { mode: 0o600, flag: "wx" },
-  );
+  if (process.env.VERCEL !== "1") {
+    await mkdir("/workspace/.cloud", { recursive: true, mode: 0o700 });
+    await writeFile(
+      "/workspace/.cloud/Antoja2-acceso.txt",
+      `Antoja2 POS — Acceso del administrador principal\n\nUsuario: admin\nContraseña inicial: ${password}\nRol: ADMIN\nEmpresa: Antoja2 Bar & Restaurante\n\nAcceso creado en este entorno de desarrollo. No está publicado en Vercel.\nIngresá desde /login del despliegue de Antoja2 cuando se publique.\nLa web de la clínica no se modificó.\nCambiá tu contraseña desde Configuración > Mi contraseña.\nConservá este archivo de forma privada; no lo subas al repositorio.\n`,
+      { mode: 0o600, flag: "wx" },
+    );
+  }
   console.log(
-    "Administrador principal creado. Usuario: admin. Acceso privado guardado fuera del repositorio.",
+    "Administrador principal aprovisionado. Usuario: admin. Contraseña no mostrada.",
   );
 }
 main()
