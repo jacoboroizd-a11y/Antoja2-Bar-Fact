@@ -665,6 +665,7 @@ model BusinessDay {
   closedBy String?
   closeData Json?
   orders BarOrder[]
+  expenses BarExpense[]
   @@unique([id,companyId])
   @@index([companyId,date])
 }
@@ -769,4 +770,24 @@ model KitchenDispatch {
   items Json
   @@unique([companyId,requestId])
   @@index([companyId,orderId])
+}
+
+model BarExpense {
+  id String @id @default(cuid())
+  companyId String
+  businessDayId String
+  businessDay BusinessDay @relation(fields:[businessDayId,companyId],references:[id,companyId],onDelete:Restrict)
+  kind String
+  method String
+  amount Decimal @db.Decimal(18,2)
+  description String
+  payee String @default("")
+  reference String @default("")
+  attachment String @default("")
+  createdBy String
+  requestId String
+  fingerprint String
+  createdAt DateTime @default(now())
+  @@unique([companyId,requestId])
+  @@index([companyId,businessDayId])
 }

@@ -144,3 +144,5 @@ En el primer despliegue, `POS_BOOTSTRAP_OWNER=1` y `POS_BOOTSTRAP_DEMO=1`
 aprovisionan cuentas y datos aislados con contraseñas suministradas como secretos
 en Vercel. Después de inicializar se retiran esas variables y contraseñas del
 build; los siguientes despliegues preservan usuarios y datos existentes.
+
+Navegación compacta: **Menú** reúne platos, bebidas, promociones y categorías; **Inventario** reúne existencias y movimientos. **Caja** registra gastos diarios y facturas de compra con referencia, comercio, forma de pago y comprobante PDF/JPG/PNG de hasta 2 MB. Solo los pagos en efectivo reducen el esperado del cierre. Las compras no ingresan existencias automáticamente: su entrada se registra en Inventario. Los reportes diarios/mensuales y CSV incluyen gastos.

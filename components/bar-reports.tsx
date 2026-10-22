@@ -76,7 +76,18 @@ export function BarReports({ report: r }: { report: Report }) {
       ["Anulaciones", m.cancelledOrders],
       ["Monto anulado", m.voidedAmount],
       ["Cobros", m.collections],
+      ["Gastos y compras", m.expenses],
+      ["Salidas de efectivo", m.cashExpenses],
       ["Diferencia de caja", m.difference],
+      [],
+      ["Gasto / compra", "Método", "Comercio", "Referencia", "C$"],
+      ...r.expenses.map((e) => [
+        e.description,
+        methods[e.method],
+        e.payee,
+        e.reference,
+        e.amount,
+      ]),
       [],
       ["Método", "Cobros"],
       ...r.methods.map((v) => [methods[v.method], v.total]),
@@ -192,6 +203,8 @@ export function BarReports({ report: r }: { report: Report }) {
           ["Efectivo", m.cash],
           ["Tarjeta", m.card],
           ["Transferencia", m.transfer],
+          ["Gastos y compras", m.expenses],
+          ["Salidas de efectivo", m.cashExpenses],
           ["Diferencia de caja", m.difference],
           ["Descuentos", m.discounts],
           ["Impuestos", m.tax],
@@ -341,6 +354,25 @@ export function BarReports({ report: r }: { report: Report }) {
         })}
         . Los cierres conservan su conteo y ajustes auditados.
       </p>
+      <section className="space-y-3">
+        <h2 className="font-semibold">Gastos y compras del período</h2>
+        <Table
+          headers={[
+            "Concepto",
+            "Pagado con",
+            "Comercio",
+            "Referencia",
+            "Monto",
+          ]}
+          rows={r.expenses.map((e) => [
+            e.description,
+            methods[e.method],
+            e.payee,
+            e.reference,
+            formatMoney(e.amount),
+          ])}
+        />
+      </section>
     </div>
   );
 }

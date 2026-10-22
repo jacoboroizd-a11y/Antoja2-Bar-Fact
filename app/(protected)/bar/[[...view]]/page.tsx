@@ -2,7 +2,7 @@ import { PosTerminal } from "@/components/pos-terminal";
 import { BarReports } from "@/components/bar-reports";
 import { barReport } from "@/server/bar-report";
 import { requireBar } from "@/server/bar-permissions";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { pageContext } from "@/server/auth";
 import { barSnapshot } from "@/server/bar";
 import { BarWorkspace } from "@/components/bar-workspace";
@@ -11,7 +11,7 @@ export default async function BarPage({
   searchParams,
 }: {
   params: Promise<{ view?: string[] }>;
-  searchParams: Promise<{ kind?: string; period?: string }>;
+  searchParams: Promise<{ kind?: string; period?: string; tab?: string }>;
 }) {
   const ctx = await pageContext();
   const { view = [] } = await params;
@@ -19,6 +19,7 @@ export default async function BarPage({
     view.length > 1 ||
     (view[0] &&
       ![
+        "menu",
         "pos",
         "tables",
         "orders",
@@ -60,6 +61,28 @@ export default async function BarPage({
       />
     );
   }
+  if (["drinks", "food", "combos", "categories"].includes(view[0] || ""))
+    redirect(`/bar/menu?tab=${view[0]}`);
+  if (view[0] === "movements") redirect("/bar/inventory?tab=movements");
+  if (view[0] === "suppliers") redirect("/bar/cash");
+  const filters = await searchParams;
+  const section = view[0] || "dashboard";
+  const menuTabs = ["drinks", "food", "combos", "categories"];
+  const inventoryTabs = ["inventory", "movements"];
+  const resolvedView =
+    section === "menu"
+      ? menuTabs.includes(filters.tab || "")
+        ? filters.tab!
+        : "food"
+      : section === "inventory" && filters.tab === "movements"
+        ? "movements"
+        : section;
+  const group =
+    section === "menu" || menuTabs.includes(section)
+      ? "menu"
+      : inventoryTabs.includes(section)
+        ? "inventory"
+        : undefined;
   const snapshot = await barSnapshot(ctx);
   if (view[0] === "pos")
     return <PosTerminal ctx={ctx} s={JSON.parse(JSON.stringify(snapshot))} />;
@@ -67,7 +90,8 @@ export default async function BarPage({
     <BarWorkspace
       ctx={ctx}
       initial={JSON.parse(JSON.stringify(snapshot))}
-      view={view[0] || "dashboard"}
+      view={resolvedView}
+      section={group}
     />
   );
 }

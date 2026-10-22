@@ -147,7 +147,9 @@ export async function barCommand(
   now = new Date(),
 ) {
   // Permission checks precede all reads/mutations. All operational writes serialize per company.
-  const permission = ["open", "close", "pay", "invoice"].includes(action)
+  const permission = ["open", "close", "pay", "invoice", "expense"].includes(
+    action,
+  )
     ? "cash"
     : action === "adjust-close"
       ? "adjustClose"
@@ -159,6 +161,81 @@ export async function barCommand(
   requireBar(ctx, permission);
   return transaction(async (tx) => {
     await companyLock(tx, ctx);
+    if (action === "expense") {
+      const data = z
+        .object({
+          requestId: z.uuid(),
+          kind: z.enum(["EXPENSE", "PURCHASE"]),
+          method: z.enum(["CASH", "CARD", "BANK_TRANSFER"]),
+          amount: money.refine(
+            (v) => decimal(v).gt(0),
+            "El monto debe ser positivo.",
+          ),
+          description: name,
+          payee: z.string().trim().max(200).default(""),
+          reference: z.string().trim().max(200).default(""),
+          attachment: z.string().max(2800000).default(""),
+        })
+        .parse(input);
+      if (data.attachment) {
+        const match =
+          /^data:(application\/pdf|image\/png|image\/jpeg);base64,([A-Za-z0-9+/]+={0,2})$/.exec(
+            data.attachment,
+          );
+        if (!match)
+          throw new AppError(
+            "Adjunta una imagen PNG/JPG o un PDF (máximo 2 MB).",
+          );
+        const bytes = Buffer.from(match[2], "base64");
+        const valid =
+          match[1] === "application/pdf"
+            ? bytes.subarray(0, 5).toString() === "%PDF-"
+            : match[1] === "image/png"
+              ? bytes
+                  .subarray(0, 8)
+                  .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+              : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
+        if (!valid || bytes.length > 2 * 1024 * 1024)
+          throw new AppError("Archivo inválido o mayor a 2 MB.");
+      }
+      const fingerprint = createHash("sha256")
+        .update(JSON.stringify(data))
+        .digest("hex");
+      const existing = await tx.barExpense.findUnique({
+        where: {
+          companyId_requestId: {
+            companyId: ctx.companyId,
+            requestId: data.requestId,
+          },
+        },
+      });
+      if (existing) {
+        if (existing.fingerprint !== fingerprint)
+          throw new AppError(
+            "La solicitud ya fue utilizada para otro gasto.",
+            409,
+          );
+        return { id: existing.id };
+      }
+      const day = await openDay(tx, ctx, now);
+      const row = await tx.barExpense.create({
+        data: {
+          ...data,
+          fingerprint,
+          companyId: ctx.companyId,
+          businessDayId: day.id,
+          createdBy: ctx.userId,
+          createdAt: now,
+        },
+      });
+      await audit(tx, ctx, "BarExpense", row.id, "EXPENSE_RECORDED", {
+        amount: data.amount,
+        kind: data.kind,
+        method: data.method,
+        reference: data.reference,
+      });
+      return { id: row.id };
+    }
     if (action === "category") {
       const data = z.object({ name, kind }).parse(input);
       const row = await tx.barCategory.create({
@@ -478,7 +555,9 @@ export async function barCommand(
             );
           const summary = await daySummary(tx, ctx, previous.id);
           const expected = amount(
-            decimal(previous.opening.toString()).plus(summary.cash),
+            decimal(previous.opening.toString())
+              .plus(summary.cash)
+              .minus(summary.cashExpenses),
           );
           const difference = amount(
             decimal(data.previousCounted).minus(expected),
@@ -638,7 +717,9 @@ export async function barCommand(
         );
       const summary = await daySummary(tx, ctx, day.id);
       const expected = amount(
-        decimal(day.opening.toString()).plus(summary.cash),
+        decimal(day.opening.toString())
+          .plus(summary.cash)
+          .minus(summary.cashExpenses),
       );
       const difference = amount(decimal(data.counted).minus(expected));
       const closeData = {
@@ -1245,6 +1326,9 @@ export async function daySummary(tx: Tx, ctx: Context, dayId: string) {
     where: { companyId: ctx.companyId, businessDayId: dayId },
     include: { payments: true, items: true },
   });
+  const expenses = await tx.barExpense.findMany({
+    where: { companyId: ctx.companyId, businessDayId: dayId },
+  });
   const paid = orders.filter((o) => o.status === "PAID");
   const sum = (field: "total" | "taxTotal" | "discountTotal" | "tip") =>
     amount(paid.reduce((n, o) => n.plus(o[field].toString()), decimal(0)));
@@ -1260,6 +1344,14 @@ export async function daySummary(tx: Tx, ctx: Context, dayId: string) {
     }),
   );
   return {
+    expenses: amount(
+      expenses.reduce((n, e) => n.plus(e.amount.toString()), decimal(0)),
+    ),
+    cashExpenses: amount(
+      expenses
+        .filter((e) => e.method === "CASH")
+        .reduce((n, e) => n.plus(e.amount.toString()), decimal(0)),
+    ),
     sales: sum("total"),
     tax: sum("taxTotal"),
     discounts: sum("discountTotal"),
@@ -1353,10 +1445,32 @@ export async function barSnapshot(ctx: Context) {
     orderBy: { createdAt: "desc" },
     take: 300,
   });
+  const expenses =
+    ["ADMIN", "MANAGER", "CASHIER", "VIEWER"].includes(ctx.role) && day
+      ? await db.barExpense.findMany({
+          where: { companyId: ctx.companyId, businessDayId: day.id },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            kind: true,
+            method: true,
+            amount: true,
+            description: true,
+            payee: true,
+            reference: true,
+            createdAt: true,
+            attachment: true,
+          },
+        })
+      : [];
   const settings = await db.companySettings.findUniqueOrThrow({
     where: { companyId: ctx.companyId },
   });
   return {
+    expenses: expenses.map(({ attachment, ...e }) => ({
+      ...e,
+      hasAttachment: Boolean(attachment),
+    })),
     demo: settings.sandboxDemo,
     clock: {
       ...barClock(),

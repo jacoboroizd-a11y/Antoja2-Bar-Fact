@@ -464,6 +464,67 @@ async function main() {
       .status === "CLOSED",
     "cierre original permanece cerrado e inmutable",
   );
+  const expenseInput = {
+    requestId: randomUUID(),
+    kind: "PURCHASE",
+    method: "CASH",
+    amount: "25",
+    description: "Insumos",
+    reference: "DEMO-001",
+    attachment:
+      "data:application/pdf;base64," +
+      Buffer.from("%PDF-1.4\nDemo").toString("base64"),
+  };
+  const [expenseA, expenseB] = (await Promise.all([
+    cmd("expense", expenseInput),
+    cmd("expense", expenseInput),
+  ])) as { id: string }[];
+  check(
+    expenseA.id === expenseB.id,
+    "reintentos concurrentes registran una única compra",
+  );
+  await rejects(
+    () => cmd("expense", { ...expenseInput, amount: "26" }),
+    /otro gasto/,
+  );
+  await cmd("expense", {
+    requestId: randomUUID(),
+    kind: "EXPENSE",
+    method: "CARD",
+    amount: "10",
+    description: "Transporte",
+  });
+  await rejects(
+    () => barCommand({ ...ctx, role: "WAITER" }, "expense", expenseInput, now),
+    /permiso/,
+  );
+  await rejects(
+    () =>
+      cmd("expense", {
+        ...expenseInput,
+        requestId: randomUUID(),
+        attachment: "data:image/png;base64,SGVsbG8=",
+      }),
+    /inválido/,
+  );
+  const expenseReport = await barReport(ctx, "month", "2026-10");
+  check(
+    expenseReport.metrics.expenses === "35.00" &&
+      expenseReport.metrics.cashExpenses === "25.00",
+    "reportes distinguen gastos totales y salidas de caja",
+  );
+  const expenseClose = (await cmd("close", { counted: "75" })) as unknown as {
+    closeData: { expected: string; difference: string };
+  };
+  check(
+    expenseClose.closeData.expected === "75.00" &&
+      expenseClose.closeData.difference === "0.00",
+    "cierre descuenta compra en efectivo y conserva gasto por tarjeta sin descontarlo de caja",
+  );
+  await rejects(
+    () => cmd("expense", { ...expenseInput, requestId: randomUUID() }),
+    /Abre una jornada/,
+  );
   console.log(
     `${checks} verificaciones de bar pasaron: medianoche, concurrencia, pagos, combos, cocina, PDF, auditoría, cierre y permisos.`,
   );
@@ -485,6 +546,7 @@ async function cleanup() {
   await db.barCategory.deleteMany({ where: { companyId } });
   await db.supplier.deleteMany({ where: { companyId } });
   await db.diningTable.deleteMany({ where: { companyId } });
+  await db.barExpense.deleteMany({ where: { companyId } });
   await db.businessDay.deleteMany({ where: { companyId } });
   await db.customer.deleteMany({ where: { companyId } });
   await db.auditLog.deleteMany({ where: { companyId } });

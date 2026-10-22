@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Sparkles,
   FileText,
-  ReceiptText,
   CreditCard,
   Users,
   Package,
@@ -33,21 +32,12 @@ const nav = [
   { href: "/bar/orders", label: "Órdenes", icon: FileText },
   { href: "/bar/kitchen", label: "Cocina", icon: Sparkles },
   { href: "/bar/cash", label: "Caja", icon: CreditCard },
-  { href: "/bar/drinks", label: "Bebidas", icon: Package },
-  { href: "/bar/food", label: "Platos", icon: Package },
-  { href: "/bar/combos", label: "Promociones", icon: Package },
-  { href: "/bar/categories", label: "Categorías", icon: Package },
-  { href: "/bar/inventory", label: "Existencias", icon: Package },
-  { href: "/bar/movements", label: "Movimientos", icon: FileText },
-  { href: "/bar/suppliers", label: "Proveedores", icon: Users },
-  { href: "/bar/reports", label: "Reportes del bar", icon: BarChart3 },
+  { href: "/bar/menu", label: "Menú", icon: Package },
+  { href: "/bar/inventory", label: "Inventario", icon: Package },
+  { href: "/bar/reports", label: "Reportes", icon: BarChart3 },
 ];
 const moreNav = [
-  { href: "/invoices", label: "Facturas", icon: ReceiptText },
-  { href: "/receipts", label: "Recibos", icon: ReceiptText },
-  { href: "/payments", label: "Pagos", icon: CreditCard },
   { href: "/customers", label: "Clientes", icon: Users },
-  { href: "/quotes", label: "Cotizaciones", icon: FileText },
   { href: "/audit", label: "Auditoría", icon: ShieldCheck },
   { href: "/settings", label: "Configuración y usuarios", icon: Settings },
 ];
@@ -163,7 +153,7 @@ export function Shell({
                     onClick={() => setOpen(false)}
                     href={n.href}
                     className={cn(
-                      "flex gap-3 items-center px-3 py-3 rounded-xl text-[13px]",
+                      "flex gap-3 items-center px-3 py-2.5 rounded-xl text-[13px]",
                       (
                         n.href === "/bar"
                           ? pathname === "/bar"
@@ -198,7 +188,7 @@ export function Shell({
                   href={n.href}
                   onClick={() => setOpen(false)}
                   className={cn(
-                    "flex gap-3 items-center px-3 py-3 rounded-xl text-[13px]",
+                    "flex gap-3 items-center px-3 py-2.5 rounded-xl text-[13px]",
                     (
                       n.href === "/bar"
                         ? pathname === "/bar"

@@ -22,7 +22,7 @@ export async function barReport(
       companyId: ctx.companyId,
       date: { gte: p.start, lt: p.end },
     };
-    const [orders, days, movements] = await Promise.all([
+    const [orders, days, movements, expenses] = await Promise.all([
       tx.barOrder.findMany({
         where: { companyId: ctx.companyId, businessDay: scope },
         include: {
@@ -44,6 +44,10 @@ export async function barReport(
           },
         },
         include: { product: { include: { product: true } } },
+        orderBy: { createdAt: "asc" },
+      }),
+      tx.barExpense.findMany({
+        where: { companyId: ctx.companyId, businessDay: scope },
         orderBy: { createdAt: "asc" },
       }),
     ]);
@@ -190,7 +194,25 @@ export async function barReport(
       label: p.label,
       company: ctx.companyName,
       generatedAt: new Date().toISOString(),
+      expenses: expenses.map((e) => ({
+        id: e.id,
+        kind: e.kind,
+        method: e.method,
+        description: e.description,
+        payee: e.payee,
+        reference: e.reference,
+        amount: e.amount.toFixed(2),
+        date: e.createdAt.toISOString(),
+      })),
       metrics: {
+        expenses: amount(
+          expenses.reduce((n, e) => n.plus(e.amount.toString()), decimal(0)),
+        ),
+        cashExpenses: amount(
+          expenses
+            .filter((e) => e.method === "CASH")
+            .reduce((n, e) => n.plus(e.amount.toString()), decimal(0)),
+        ),
         sales: sum("total"),
         net: amount(decimal(sum("subtotal")).minus(sum("discountTotal"))),
         tax: sum("taxTotal"),

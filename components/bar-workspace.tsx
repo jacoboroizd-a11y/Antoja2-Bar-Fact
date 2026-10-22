@@ -20,6 +20,7 @@ import {
   Printer,
   Search,
 } from "lucide-react";
+import { BarExpenses } from "./bar-expenses";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { formatMoney, decimal, amount } from "@/lib/money";
@@ -189,10 +190,12 @@ export function BarWorkspace({
   ctx,
   initial: s,
   view,
+  section,
 }: {
   ctx: Context;
   initial: Snapshot;
   view: string;
+  section?: string;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -283,7 +286,7 @@ export function BarWorkspace({
     view === "drinks" ? "DRINK" : view === "food" ? "FOOD" : "COMBO";
   const filteredProducts = s.products.filter(
     (p) =>
-      (view === "inventory" || p.kind === kinds) &&
+      (view === "inventory" ? p.trackStock : p.kind === kinds) &&
       p.product.name.toLowerCase().includes(search.toLowerCase()),
   );
   function rank(
@@ -377,7 +380,13 @@ export function BarWorkspace({
           <p className="text-xs font-semibold tracking-widest text-brand-700 uppercase mb-2">
             Antoja2 · Bar & restaurante
           </p>
-          <h1 className="text-3xl font-semibold">{labels[view]}</h1>
+          <h1 className="text-3xl font-semibold">
+            {section === "menu"
+              ? "Menú"
+              : section === "inventory"
+                ? "Inventario"
+                : labels[view]}
+          </h1>
           <p className="text-sm text-slate-500 mt-2">
             {s.day
               ? `Jornada ${s.day.date.slice(0, 10)} · Abierta desde ${fmt(s.day.openedAt)}`
@@ -399,6 +408,42 @@ export function BarWorkspace({
           )}
         </div>
       </div>
+      {section && (
+        <nav
+          aria-label={
+            section === "menu"
+              ? "Secciones del menú"
+              : "Secciones de inventario"
+          }
+          className="flex gap-2 overflow-x-auto border-b border-slate-200 pb-3"
+        >
+          {(section === "menu"
+            ? [
+                ["food", "Platos"],
+                ["drinks", "Bebidas"],
+                ["combos", "Promociones"],
+                ["categories", "Categorías"],
+              ]
+            : [
+                ["inventory", "Existencias"],
+                ["movements", "Historial de movimientos"],
+              ]
+          ).map(([tab, label]) => (
+            <Link
+              key={tab}
+              href={
+                section === "menu"
+                  ? `/bar/menu?tab=${tab}`
+                  : `/bar/inventory?tab=${tab}`
+              }
+              aria-current={view === tab ? "page" : undefined}
+              className={`shrink-0 rounded-lg px-4 py-2 text-sm ${view === tab ? "bg-brand-700 text-white" : "bg-white text-slate-600"}`}
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
+      )}
       {!s.clock.operating && (
         <p className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-sm">
           Fuera del horario de consumo. Podés cobrar pendientes y cerrar la
@@ -420,7 +465,9 @@ export function BarWorkspace({
             <Metric
               label="Efectivo esperado"
               value={formatMoney(
-                sum([s.day?.opening || "0", summary?.cash || "0"]),
+                decimal(s.day?.opening || "0")
+                  .plus(summary?.cash || "0")
+                  .minus(summary?.cashExpenses || "0"),
               )}
             />
             <Metric
@@ -810,10 +857,16 @@ export function BarWorkspace({
             <Metric
               label="Efectivo esperado"
               value={formatMoney(
-                sum([s.day?.opening || "0", summary?.cash || "0"]),
+                decimal(s.day?.opening || "0")
+                  .plus(summary?.cash || "0")
+                  .minus(summary?.cashExpenses || "0"),
               )}
             />
           </div>
+          <BarExpenses
+            expenses={s.expenses}
+            canRecord={can("cash") && Boolean(s.day)}
+          />
           {can("cash") && (
             <section className="panel p-6 max-w-2xl">
               <h2 className="font-semibold mb-4">
@@ -929,6 +982,8 @@ export function BarWorkspace({
                       ["Descuentos", "discounts"],
                       ["Impuestos", "tax"],
                       ["Propinas", "tips"],
+                      ["Gastos y compras", "expenses"],
+                      ["Salidas de efectivo", "cashExpenses"],
                       ["Esperado", "expected"],
                       ["Ticket promedio", "average"],
                     ].map(([label, k]) => (
@@ -988,16 +1043,26 @@ export function BarWorkspace({
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          {view === "inventory" && (
+            <p className="text-sm text-slate-500">
+              {low.length
+                ? `${low.length} productos requieren reposición.`
+                : "Existencias por encima del mínimo."}{" "}
+              Las ventas descuentan automáticamente los productos y componentes
+              de recetas.
+            </p>
+          )}
           <DataRows
-            headers={[
-              "Producto",
-              "Categoría",
-              "Precio",
-              "Costo",
-              "Existencia / mínimo",
-              "Estado",
-              "",
-            ]}
+            headers={
+              view === "inventory"
+                ? [
+                    "Producto",
+                    "Categoría",
+                    "Existencia / mínimo",
+                    "Costo unitario",
+                  ]
+                : ["Producto", "Categoría", "Precio", "Estado", ""]
+            }
             rows={filteredProducts.map((p) => [
               <div key={p.id}>
                 <strong>{p.product.name}</strong>
@@ -1006,87 +1071,62 @@ export function BarWorkspace({
                 </p>
               </div>,
               p.category.name,
-              formatMoney(p.product.price),
-              formatMoney(p.cost),
-              p.trackStock ? (
-                <Pill
-                  tone={decimal(p.stock).lte(p.minimum) ? "amber" : "green"}
-                >
-                  {p.stock} / {p.minimum}
-                </Pill>
-              ) : (
-                "Por receta / sin stock"
-              ),
-              !p.product.active
-                ? "Inactivo"
-                : p.available
-                  ? "Disponible"
-                  : "No disponible",
-              can("catalog") ? (
-                <Button
-                  key="toggle"
-                  variant="ghost"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() =>
-                    run("product", {
-                      ...p,
-                      ...p.product,
-                      id: p.id,
-                      kind: p.kind,
-                      categoryId: p.categoryId,
-                      cost: p.cost,
-                      minimum: p.minimum,
-                      supplierId: p.supplierId,
-                      taxId: p.product.taxId,
-                      trackStock: p.trackStock,
-                      available: !p.available,
-                      components: p.components.map((c) => ({
-                        ingredientId: c.ingredientId,
-                        quantity: c.quantity,
-                      })),
-                    })
-                  }
-                >
-                  {p.available ? "No disponible" : "Habilitar"}
-                </Button>
-              ) : null,
+              ...(view === "inventory"
+                ? [
+                    <Pill
+                      key="stock"
+                      tone={decimal(p.stock).lte(p.minimum) ? "amber" : "green"}
+                    >
+                      {p.stock} / {p.minimum}
+                    </Pill>,
+                    formatMoney(p.cost),
+                  ]
+                : [
+                    formatMoney(p.product.price),
+                    !p.product.active
+                      ? "Inactivo"
+                      : p.available
+                        ? "Disponible"
+                        : "No disponible",
+                    can("catalog") ? (
+                      <Button
+                        key="edit"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingProduct(p)}
+                      >
+                        Editar
+                      </Button>
+                    ) : null,
+                  ]),
             ])}
           />
-          {can("catalog") && (
-            <div className="panel p-5">
-              <label>
-                Editar producto existente
-                <select
-                  value={editingProduct?.id || ""}
-                  onChange={(e) =>
-                    setEditingProduct(
-                      s.products.find((p) => p.id === e.target.value) || null,
-                    )
-                  }
+          {can("catalog") && editingProduct && view !== "inventory" && (
+            <section className="panel p-5">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h2 className="font-semibold">
+                  Editar {editingProduct.product.name}
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditingProduct(null)}
                 >
-                  <option value="">Seleccionar producto</option>
-                  {filteredProducts.map((p) => (
-                    <option value={p.id} key={p.id}>
-                      {p.product.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {editingProduct && (
-                <ProductForm
-                  key={editingProduct.id}
-                  initial={editingProduct}
-                  s={s}
-                  kind={editingProduct.kind}
-                  busy={busy}
-                  save={async (body) => {
-                    await command("product", body);
-                    setEditingProduct(null);
-                  }}
-                />
-              )}
-            </div>
+                  Cancelar
+                </Button>
+              </div>
+              <ProductForm
+                key={editingProduct.id}
+                initial={editingProduct}
+                s={s}
+                kind={editingProduct.kind}
+                busy={busy}
+                save={async (body) => {
+                  await command("product", body);
+                  setEditingProduct(null);
+                }}
+              />
+            </section>
           )}
           {can("catalog") && view !== "inventory" && (
             <details className="panel p-6">
@@ -2052,16 +2092,6 @@ function ProductForm({
               defaultValue={initial?.product.unit || "unidad"}
               required
             />
-          </Field>
-          <Field label="Proveedor">
-            <select name="supplierId" defaultValue={initial?.supplierId || ""}>
-              <option value="">Sin proveedor</option>
-              {s.suppliers.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
           </Field>
           {kind === "DRINK" && (
             <>
