@@ -119,7 +119,13 @@ export function Shell({
             aria-label="Ir al inicio"
             className="flex items-center gap-3"
           >
-            <Image src="/brand/antoja2.png" alt="Logo Antoja2" width={44} height={44} className="rounded-lg shrink-0" />
+            <Image
+              src="/brand/antoja2.png"
+              alt="Logo Antoja2"
+              width={44}
+              height={44}
+              className="rounded-lg shrink-0"
+            />
             <span className="text-2xl font-semibold tracking-tight">
               Antoja<span className="text-brand-600">2</span>
               <span className="block text-[10px] tracking-[0.2em] uppercase text-slate-500">

@@ -1,4 +1,5 @@
 import "dotenv/config";
+import demoMenu from "./demo-menu.json";
 import { hash } from "bcryptjs";
 import { randomUUID } from "node:crypto";
 import { writeFile, mkdir } from "node:fs/promises";
@@ -24,6 +25,35 @@ async function main() {
     name: user.name,
     companyName: company.name,
   };
+  const categories = await db.barCategory.findMany({
+    where: { companyId: company.id },
+  });
+  for (const entry of demoMenu) {
+    if (
+      await db.product.findFirst({
+        where: { companyId: company.id, sku: entry.sku },
+      })
+    )
+      continue;
+    const category = categories.find(
+      (c) => c.name === entry.category && c.kind === entry.kind,
+    );
+    if (!category) throw new Error("Falta categoría demo: " + entry.category);
+    await barCommand(ctx, "product", {
+      ...entry,
+      categoryId: category.id,
+      description: "Producto ficticio para demostración",
+      trackStock: entry.kind === "DRINK",
+      initialStock: entry.kind === "DRINK" ? "100" : "0",
+      customizations:
+        entry.kind === "FOOD" && entry.category !== "Postres"
+          ? [
+              { key: "no-onion", label: "cebolla", kind: "REMOVE", price: "0" },
+              { key: "no-sauce", label: "salsa", kind: "REMOVE", price: "0" },
+            ]
+          : [],
+    });
+  }
   const burger = await db.barProduct.findFirstOrThrow({
     where: { companyId: company.id, product: { sku: "PLT-001" } },
   });

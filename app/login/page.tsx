@@ -6,7 +6,14 @@ export default function Login() {
       <section className="hidden lg:flex bg-[#4b1125] text-white p-16 flex-col justify-between">
         <div className="text-xl font-semibold tracking-tight">
           <div className="flex items-center gap-5">
-            <Image src="/brand/antoja2.png" alt="Logo Antoja2" width={100} height={100} className="rounded-2xl" preload />
+            <Image
+              src="/brand/antoja2.png"
+              alt="Logo Antoja2"
+              width={100}
+              height={100}
+              className="rounded-2xl"
+              preload
+            />
             <span className="text-3xl font-semibold text-white">
               Antoja2{" "}
               <small className="block text-xs mt-2 tracking-widest">
@@ -16,9 +23,7 @@ export default function Login() {
           </div>
         </div>
         <div>
-          <span className="text-brand-300 text-sm">
-            HECHO PARA TU EMPRESA
-          </span>
+          <span className="text-brand-300 text-sm">HECHO PARA TU EMPRESA</span>
           <h1 className="text-5xl font-semibold leading-tight mt-5 max-w-lg">
             Tus ventas claras.
             <br />
@@ -39,7 +44,13 @@ export default function Login() {
       <section className="flex items-center justify-center p-8">
         <div className="w-full max-w-sm">
           <div className="lg:hidden flex items-center gap-4 text-2xl font-bold mb-10 text-brand-800">
-            <Image src="/brand/antoja2.png" alt="Logo Antoja2" width={72} height={72} className="rounded-xl" />
+            <Image
+              src="/brand/antoja2.png"
+              alt="Logo Antoja2"
+              width={72}
+              height={72}
+              className="rounded-xl"
+            />
             <span className="text-3xl font-semibold text-brand-900">
               Antoja2{" "}
               <small className="block text-xs mt-2 tracking-widest">

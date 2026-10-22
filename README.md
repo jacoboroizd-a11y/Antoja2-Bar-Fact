@@ -41,7 +41,7 @@ El usuario puede cambiar su contraseña en Configuración → Mi contraseña.
 
 ## Demostración
 
-La demo contiene menú, modificadores, combos, 12 mesas, órdenes abiertas,
+La demo contiene 15 productos ficticios, modificadores, combos, 12 mesas, órdenes abiertas,
 comandas y cuatro jornadas cerradas con ventas ficticias de septiembre/octubre de
 2026. Los accesos están en `/workspace/.cloud/Antoja2-demo-acceso.txt`.
 La preparación es repetible y no borra ventas ni modifica usuarios existentes.

@@ -1,0 +1,82 @@
+[
+  {
+    "sku": "DEMO-001",
+    "name": "Papas con queso",
+    "category": "Acompañamientos",
+    "kind": "FOOD",
+    "price": "110",
+    "cost": "40"
+  },
+  {
+    "sku": "DEMO-002",
+    "name": "Alitas BBQ",
+    "category": "Entradas",
+    "kind": "FOOD",
+    "price": "195",
+    "cost": "80"
+  },
+  {
+    "sku": "DEMO-003",
+    "name": "Tacos de pollo",
+    "category": "Tacos",
+    "kind": "FOOD",
+    "price": "165",
+    "cost": "65"
+  },
+  {
+    "sku": "DEMO-004",
+    "name": "Tacos de res",
+    "category": "Tacos",
+    "kind": "FOOD",
+    "price": "185",
+    "cost": "80"
+  },
+  {
+    "sku": "DEMO-005",
+    "name": "Pollo a la plancha",
+    "category": "Platos fuertes",
+    "kind": "FOOD",
+    "price": "240",
+    "cost": "100"
+  },
+  {
+    "sku": "DEMO-006",
+    "name": "Hamburguesa vegetariana",
+    "category": "Hamburguesas",
+    "kind": "FOOD",
+    "price": "200",
+    "cost": "80"
+  },
+  {
+    "sku": "DEMO-007",
+    "name": "Brownie con helado",
+    "category": "Postres",
+    "kind": "FOOD",
+    "price": "95",
+    "cost": "35"
+  },
+  {
+    "sku": "DEMO-008",
+    "name": "Gaseosa de cola",
+    "category": "Gaseosas",
+    "kind": "DRINK",
+    "price": "45",
+    "cost": "20"
+  },
+  {
+    "sku": "DEMO-009",
+    "name": "Limonada natural",
+    "category": "Jugos",
+    "kind": "DRINK",
+    "price": "60",
+    "cost": "18"
+  },
+  {
+    "sku": "DEMO-010",
+    "name": "Cerveza Victoria",
+    "category": "Cervezas",
+    "kind": "DRINK",
+    "price": "65",
+    "cost": "38"
+  }
+]
