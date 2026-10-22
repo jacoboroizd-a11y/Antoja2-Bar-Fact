@@ -1,0 +1,271 @@
+@import "tailwindcss";
+@theme inline {
+  --font-sans:
+    ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+@layer base {
+  input[type="number"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  :root {
+    color-scheme: light;
+    --background: #f4f7f6;
+    --foreground: #203a35;
+  }
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse at 0% 0%, #dcefe7 0, transparent 45%),
+      radial-gradient(ellipse at 100% 30%, #eee8f6 0, transparent 40%),
+      var(--background);
+    background-attachment: fixed;
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  select,
+  textarea {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid #dce5e1;
+    border-radius: 12px;
+    background-color: rgba(255, 255, 255, 0.85);
+    padding: 11px 14px;
+    font-size: 14px;
+    line-height: 1.4;
+    outline: none;
+    transition:
+      border-color 0.18s ease,
+      box-shadow 0.18s ease,
+      background-color 0.18s ease;
+  }
+  select {
+    appearance: none;
+    padding-right: 36px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23647770' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+  select option {
+    background: #fff;
+    color: #203a35;
+  }
+  select:focus,
+  textarea:focus {
+    border-color: #388c72;
+    box-shadow: 0 0 0 3px #d4eae0;
+  }
+  input[type="date"],
+  input[type="datetime-local"] {
+    min-height: 44px;
+    min-width: 0;
+  }
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #50675f;
+    margin-bottom: 8px;
+  }
+  button,
+  a,
+  summary {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:focus-visible,
+  a:focus-visible,
+  summary:focus-visible {
+    outline: 2px solid #39856d;
+    outline-offset: 4px;
+  }
+  h1,
+  h2 {
+    letter-spacing: -0.025em;
+  }
+}
+@layer components {
+  .panel {
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow:
+      0 6px 28px #24453608,
+      inset 0 1px 0 #ffffff;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+  .glass-nav {
+    background: rgba(255, 255, 255, 0.76);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-color: rgba(216, 228, 221, 0.65);
+  }
+  .table th {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #71837b;
+    font-weight: 600;
+    padding: 16px 18px;
+    text-align: left;
+    background: #f4f8f680;
+    white-space: nowrap;
+  }
+  .table td {
+    padding: 17px 18px;
+    border-top: 1px solid #eaf0ed;
+    font-size: 13px;
+  }
+  .table tbody tr {
+    transition: background-color 0.16s ease;
+  }
+  .table tbody tr:hover {
+    background: #edf6f180;
+  }
+  .filter-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  @media (min-width: 640px) {
+    .filter-controls {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 1280px) {
+    .filter-controls {
+      grid-template-columns: minmax(200px, 1fr) 175px 125px 200px;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+@media print {
+  aside,
+  header,
+  .no-print {
+    display: none !important;
+  }
+  .lg\:ml-60 {
+    margin-left: 0 !important;
+  }
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  body {
+    background: white;
+    color: #182a2a;
+  }
+  .panel {
+    border: 0;
+    box-shadow: none;
+    background: white;
+    backdrop-filter: none;
+  }
+}
+
+@page clinic-note {
+  size: letter portrait;
+  margin: 12mm;
+}
+@page clinic-quote {
+  size: letter portrait;
+  margin: 15mm;
+}
+@media print {
+  .print-note {
+    page: clinic-note;
+  }
+  .print-quote {
+    page: clinic-quote;
+  }
+  .print-document {
+    padding: 0 !important;
+    width: 100%;
+    font-size: 9pt;
+  }
+  .print-document table {
+    font-size: 8pt;
+  }
+  .print-document th,
+  .print-document td {
+    padding: 7pt 4pt;
+  }
+  .print-document tr {
+    break-inside: avoid;
+  }
+  .print-document thead {
+    display: table-header-group;
+  }
+  .print-document .py-7 {
+    padding-block: 12pt;
+  }
+  .print-document .pb-8 {
+    padding-bottom: 16pt;
+  }
+  .print-document h2 {
+    font-size: 15pt;
+  }
+  .print-document .grid.sm\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Touch screens: readable fields, usable targets and room for the home indicator. */
+@media screen and (max-width: 1023px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+  button,
+  a[role="button"] {
+    min-height: 44px;
+  }
+  main {
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+}
+@media (pointer: coarse) {
+  button,
+  a[role="button"] {
+    min-height: 44px;
+  }
+}
+
+/* POS: portrait phones switch panels; tablets and landscape use two columns. */
+.pos-columns { display: grid; grid-template-columns: minmax(0,1fr); }
+.pos-menu, .pos-cart { min-width: 0; }
+.pos-hidden-mobile { display: none; }
+@media (min-width: 1100px), (orientation: landscape) and (min-width: 740px) {
+  .pos-columns { grid-template-columns: minmax(0, 1.4fr) minmax(280px, .8fr); }
+  .pos-hidden-mobile { display: block; }
+  .pos-mobile-tabs { display: none; }
+  .pos-cart { position: sticky; top: 16px; max-height: calc(100dvh - 32px); overflow-y: auto; }
+}
+@media print {
+  .thermal-paper { color: #000 !important; overflow-wrap: anywhere; }
+  .thermal-paper p, .thermal-paper div { break-inside: avoid; }
+  .table tr { break-inside: avoid; }
+  .table thead { display: table-header-group; }
+}

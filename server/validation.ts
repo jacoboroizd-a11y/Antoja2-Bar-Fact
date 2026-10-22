@@ -1,0 +1,217 @@
+import { normalizePhone } from "@/lib/phone";
+import { z } from "zod";
+const text = z.string().trim().max(2000).default("");
+const name = z.string().trim().min(1).max(200);
+const money = z
+  .string()
+  .regex(/^\d{1,12}(\.\d{1,2})?$/, "Monto inválido (máximo dos decimales)");
+const rate = z
+  .string()
+  .regex(/^\d{1,3}(\.\d{1,4})?$/)
+  .refine((v) => Number(v) <= 100, "Porcentaje entre 0 y 100");
+const exchange = z
+  .string()
+  .regex(/^\d{1,9}(\.\d{1,6})?$/)
+  .refine((v) => Number(v) > 0);
+const date = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine(
+    (v) =>
+      !isNaN(new Date(v).getTime()) &&
+      new Date(v).toISOString().slice(0, 10) === v,
+    "Fecha inválida",
+  );
+export const customerSchema = z.object({
+  name,
+  legalName: text,
+  tradeName: text,
+  ruc: text,
+  phone: text.transform((value, ctx) => {
+    try {
+      return normalizePhone(value);
+    } catch {
+      ctx.addIssue({
+        code: "custom",
+        message: "Revisa el teléfono y el prefijo del país.",
+      });
+      return z.NEVER;
+    }
+  }),
+  email: z.union([z.email(), z.literal("")]).default(""),
+  address: text,
+  city: text,
+  notes: text,
+  active: z.boolean().default(true),
+});
+export const productSchema = z
+  .object({
+    sku: name,
+    name,
+    description: text,
+    category: text,
+    type: z.enum(["PRODUCT", "SERVICE"]).default("PRODUCT"),
+    pricingMode: z.enum(["FIXED", "PER_UNIT"]).default("FIXED"),
+    stock: z.coerce.number().int().min(0).max(1000000000).optional(),
+    sessions: z.coerce.number().int().min(1).max(100).default(1),
+    price: money,
+    currency: z.enum(["NIO", "USD"]).default("NIO"),
+    unit: name.default("unidad"),
+    taxId: z.string().nullable().optional(),
+    active: z.boolean().default(true),
+  })
+  .refine(
+    (p) =>
+      p.pricingMode !== "PER_UNIT" ||
+      (p.type === "SERVICE" && p.sessions === 1),
+    "El cobro por unidad requiere un tratamiento individual, no un cosmético o paquete.",
+  );
+export const taxSchema = z.object({
+  name,
+  rate,
+  active: z.boolean().default(true),
+});
+export const lineSchema = z.object({
+  productId: z.string().nullable().optional(),
+  description: name,
+  quantity: z
+    .string()
+    .regex(/^\d{1,9}(\.\d{1,4})?$/)
+    .refine((v) => Number(v) > 0),
+  unitPrice: money,
+  discountRate: rate.default("0"),
+  taxRate: rate.default("0"),
+});
+export const documentSchema = z
+  .object({
+    customerId: name,
+    date,
+    dueDate: date,
+    currency: z.enum(["NIO", "USD"]),
+    exchangeRate: exchange,
+    items: z.array(lineSchema).min(1).max(100),
+    discountRate: rate.default("0"),
+    notes: text,
+    terms: text,
+    status: z
+      .enum(["DRAFT", "SENT", "ACCEPTED", "REJECTED", "EXPIRED", "PENDING"])
+      .default("DRAFT"),
+  })
+  .refine(
+    (v) => v.dueDate >= v.date,
+    "El vencimiento no puede preceder a la fecha.",
+  );
+export const paymentSchema = z.object({
+  requestId: z.uuid().optional(),
+  invoiceId: name,
+  amount: money.refine((v) => Number(v) > 0),
+  currency: z.enum(["NIO", "USD"]),
+  paymentDate: date,
+  method: z.enum(["CASH", "BANK_TRANSFER", "CARD", "CHECK", "OTHER"]),
+  reference: text,
+  account: text,
+  notes: text,
+});
+export const settingsSchema = z
+  .object({
+    name,
+    tradeName: text,
+    ruc: text,
+    logo: z
+      .union([
+        z
+          .string()
+          .regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/)
+          .max(350000),
+        z.literal(""),
+      ])
+      .default(""),
+    address: text,
+    phone: text.transform((value, ctx) => {
+      try {
+        return normalizePhone(value);
+      } catch {
+        ctx.addIssue({
+          code: "custom",
+          message: "Revisa el teléfono y el prefijo del país.",
+        });
+        return z.NEVER;
+      }
+    }),
+    email: z.union([z.email(), z.literal("")]).default(""),
+    primaryCurrency: z.enum(["NIO", "USD"]),
+    secondaryCurrency: z.enum(["NIO", "USD"]),
+    exchangeRate: exchange,
+    invoicePrefix: z.string().regex(/^[A-Za-z0-9-]{1,12}$/),
+    quotePrefix: z.string().regex(/^[A-Za-z0-9-]{1,12}$/),
+    receiptPrefix: z.string().regex(/^[A-Za-z0-9-]{1,12}$/),
+    nextInvoice: z.coerce.number().int().min(1).max(999999999),
+    nextQuote: z.coerce.number().int().min(1).max(999999999),
+    nextReceipt: z.coerce.number().int().min(1).max(999999999),
+    bankInfo: text,
+    terms: text,
+    notes: text,
+    holidays: z
+      .string()
+      .trim()
+      .max(3000)
+      .default("")
+      .refine(
+        (value) =>
+          !value ||
+          value
+            .split(/[\s,;]+/)
+            .every(
+              (day) =>
+                /^20\d{2}-\d{2}-\d{2}$/.test(day) &&
+                !isNaN(Date.parse(day)) &&
+                new Date(day).toISOString().slice(0, 10) === day,
+            ),
+        "Usa fechas YYYY-MM-DD separadas por comas.",
+      ),
+    dateFormat: z.enum(["dd/MM/yyyy", "MM/dd/yyyy", "yyyy-MM-dd"]),
+  })
+  .refine(
+    (v) => v.primaryCurrency !== v.secondaryCurrency,
+    "Las monedas deben ser diferentes.",
+  );
+export const userSchema = z
+  .object({
+    name,
+    email: z
+      .email()
+      .transform((v) => v.toLowerCase())
+      .optional(),
+    username: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(
+        /^[a-z][a-z0-9._-]{2,29}$/,
+        "Usa 3 a 30 letras, números, puntos o guiones.",
+      )
+      .optional(),
+    password: z.string().min(1).max(72),
+    role: z.enum(["ADMIN", "BILLING", "VIEWER", "ACCOUNTANT", "MANAGER", "CASHIER", "WAITER", "KITCHEN"]),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.email && !data.username)
+      ctx.addIssue({
+        code: "custom",
+        path: ["username"],
+        message: "Indica un usuario.",
+      });
+    if (
+      data.username
+        ? !/^\d{6,12}$/.test(data.password)
+        : data.password.length < 12 ||
+          Buffer.byteLength(data.password, "utf8") > 72
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["password"],
+        message: data.username
+          ? "El PIN debe tener de 6 a 12 dígitos."
+          : "La contraseña debe tener al menos 12 caracteres y máximo 72 bytes.",
+      });
+  });

@@ -1,0 +1,772 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  BILLING
+  VIEWER
+  ACCOUNTANT
+  MANAGER
+  CASHIER
+  WAITER
+  KITCHEN
+}
+
+enum Currency {
+  NIO
+  USD
+}
+
+enum ProductType {
+  PRODUCT
+  SERVICE
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CONVERTED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  CHECK
+  OTHER
+  COURTESY
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String?      @unique
+  username     String?      @unique
+  name         String
+  passwordHash String
+  active       Boolean      @default(true)
+  memberships  Membership[]
+  sessions     Session[]
+  auditLogs    AuditLog[]
+  createdAt    DateTime     @default(now())
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model LoginAttempt {
+  key     String   @id
+  count   Int      @default(0)
+  resetAt DateTime
+}
+
+model Company {
+  businessDays BusinessDay[]
+  barCategories BarCategory[]
+  suppliers Supplier[]
+  diningTables DiningTable[]
+  barOrders BarOrder[]
+  barProducts BarProduct[]
+  inventoryMovements InventoryMovement[]
+  kitchenDispatches KitchenDispatch[]
+
+  cashMovements CashMovement[]
+  messagingConnection MessagingConnection?
+  messageThreads MessageThread[]
+  cashDays CashDay[]
+  advances CustomerAdvance[]
+  appointments Appointment[]
+  deliveryJobs ReportDelivery[]
+  calendarConnection CalendarConnection?
+  id          String           @id @default(cuid())
+  name        String
+  tradeName   String           @default("")
+  ruc         String           @default("")
+  logo        String           @default("")
+  address     String           @default("")
+  phone       String           @default("")
+  email       String           @default("")
+  memberships Membership[]
+  customers   Customer[]
+  products    Product[]
+  quotes      Quote[]
+  invoices    Invoice[]
+  payments    Payment[]
+  receipts    Receipt[]
+  taxes       Tax[]
+  settings    CompanySettings?
+  auditLogs   AuditLog[]
+  createdAt   DateTime         @default(now())
+}
+
+model Membership {
+  id        String  @id @default(cuid())
+  userId    String
+  companyId String
+  role      Role
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@index([userId])
+}
+
+model CompanySettings {
+  sandboxDemo Boolean @default(false)
+  companyId         String   @id
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  primaryCurrency   Currency @default(NIO)
+  secondaryCurrency Currency @default(USD)
+  exchangeRate      Decimal  @default(36.6243) @db.Decimal(18, 6)
+  invoicePrefix     String   @default("FAC-")
+  quotePrefix       String   @default("COT-")
+  receiptPrefix     String   @default("REC-")
+  nextInvoice       Int      @default(1)
+  nextQuote         Int      @default(1)
+  nextReceipt       Int      @default(1)
+  bankInfo          String   @default("")
+  terms             String   @default("")
+  notes             String   @default("")
+  dateFormat        String   @default("dd/MM/yyyy")
+  holidays          String   @default("")
+}
+
+model Customer {
+  id        String    @id @default(cuid())
+  companyId String
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  name      String
+  legalName String    @default("")
+  tradeName String    @default("")
+  ruc       String    @default("")
+  phone     String    @default("")
+  email     String    @default("")
+  address   String    @default("")
+  city      String    @default("")
+  notes     String    @default("")
+  active    Boolean   @default(true)
+  quotes    Quote[]
+  advances CustomerAdvance[]
+  appointments Appointment[]
+  invoices  Invoice[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([id, companyId])
+  @@index([companyId, name])
+  @@index([companyId, createdAt])
+}
+
+model Tax {
+  id        String    @id @default(cuid())
+  companyId String
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  name      String
+  rate      Decimal   @db.Decimal(7, 4)
+  active    Boolean   @default(true)
+  products  Product[]
+
+  @@unique([id, companyId])
+  @@index([companyId])
+}
+
+model Product {
+  bar BarProduct?
+
+  id           String        @id @default(cuid())
+  companyId    String
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  sku          String
+  name         String
+  description  String        @default("")
+  category     String        @default("")
+  type         ProductType   @default(PRODUCT)
+  quoteItems   QuoteItem[]
+  invoiceItems InvoiceItem[]
+  pricingMode  String        @default("FIXED")
+  stock        Int           @default(0)
+  sessions     Int           @default(1)
+  price        Decimal       @db.Decimal(18, 2)
+  currency     Currency      @default(NIO)
+  unit         String        @default("unidad")
+  taxId        String?
+  tax          Tax?          @relation(fields: [taxId, companyId], references: [id, companyId], onDelete: Restrict)
+  active       Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([companyId, sku])
+  @@unique([id, companyId])
+  @@index([companyId, name])
+}
+
+model Quote {
+  id               String      @id @default(cuid())
+  companyId        String
+  company          Company     @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  customerId       String
+  customer         Customer    @relation(fields: [customerId, companyId], references: [id, companyId], onDelete: Restrict)
+  documentNumber   String
+  date             DateTime    @db.Date
+  dueDate          DateTime    @db.Date
+  currency         Currency
+  exchangeRate     Decimal     @db.Decimal(18, 6)
+  status           QuoteStatus @default(DRAFT)
+  discountRate     Decimal     @default(0) @db.Decimal(7, 4)
+  subtotal         Decimal     @db.Decimal(18, 2)
+  discountTotal    Decimal     @db.Decimal(18, 2)
+  taxTotal         Decimal     @db.Decimal(18, 2)
+  total            Decimal     @db.Decimal(18, 2)
+  notes            String      @default("")
+  terms            String      @default("")
+  customerSnapshot Json
+  companySnapshot  Json
+  items            QuoteItem[]
+  invoice          Invoice?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@unique([id, companyId])
+  @@unique([companyId, documentNumber])
+  @@index([companyId, status, date])
+  @@index([companyId, createdAt])
+  @@index([customerId])
+}
+
+model QuoteItem {
+  id           String   @id @default(cuid())
+  quoteId      String
+  companyId    String
+  quote        Quote    @relation(fields: [quoteId, companyId], references: [id, companyId], onDelete: Cascade)
+  productId    String?
+  product      Product? @relation(fields: [productId, companyId], references: [id, companyId], onDelete: Restrict)
+  description  String
+  quantity     Decimal  @db.Decimal(18, 4)
+  unitPrice    Decimal  @db.Decimal(18, 2)
+  discountRate Decimal  @default(0) @db.Decimal(7, 4)
+  taxRate      Decimal  @default(0) @db.Decimal(7, 4)
+  subtotal     Decimal  @db.Decimal(18, 2)
+  discount     Decimal  @db.Decimal(18, 2)
+  tax          Decimal  @db.Decimal(18, 2)
+  total        Decimal  @db.Decimal(18, 2)
+  position     Int
+
+  @@index([quoteId, companyId])
+  @@index([companyId, productId])
+}
+
+model Invoice {
+  barOrder BarOrder?
+
+  appointment Appointment?
+  nextAppointment  DateTime?
+  checkoutKey      String?
+  checkoutHash     String?
+  id               String        @id @default(cuid())
+  companyId        String
+  company          Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  customerId       String
+  customer         Customer      @relation(fields: [customerId, companyId], references: [id, companyId], onDelete: Restrict)
+  quoteId          String?       @unique
+  quote            Quote?        @relation(fields: [quoteId, companyId], references: [id, companyId], onDelete: Restrict)
+  documentNumber   String
+  date             DateTime      @db.Date
+  dueDate          DateTime?     @db.Date
+  currency         Currency
+  exchangeRate     Decimal       @db.Decimal(18, 6)
+  status           InvoiceStatus @default(DRAFT)
+  discountRate     Decimal       @default(0) @db.Decimal(7, 4)
+  subtotal         Decimal       @db.Decimal(18, 2)
+  discountTotal    Decimal       @db.Decimal(18, 2)
+  taxTotal         Decimal       @db.Decimal(18, 2)
+  total            Decimal       @db.Decimal(18, 2)
+  amountPaid       Decimal       @default(0) @db.Decimal(18, 2)
+  balanceDue       Decimal       @db.Decimal(18, 2)
+  notes            String        @default("")
+  terms            String        @default("")
+  customerSnapshot Json
+  companySnapshot  Json
+  items            InvoiceItem[]
+  payments         Payment[]
+  receipts         Receipt[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@unique([id, companyId])
+  @@unique([companyId, documentNumber])
+  @@unique([companyId, checkoutKey])
+  @@index([companyId, nextAppointment])
+  @@unique([quoteId, companyId])
+  @@index([companyId, status, date])
+  @@index([companyId, createdAt])
+  @@index([companyId, dueDate])
+  @@index([customerId])
+}
+
+model InvoiceItem {
+  reportGroup String @default("ESTHETIC")
+  sessionsTotal Int     @default(0)
+  sessionsUsed  Int     @default(0)
+  id           String   @id @default(cuid())
+  invoiceId    String
+  companyId    String
+  invoice      Invoice  @relation(fields: [invoiceId, companyId], references: [id, companyId], onDelete: Cascade)
+  productId    String?
+  product      Product? @relation(fields: [productId, companyId], references: [id, companyId], onDelete: Restrict)
+  description  String
+  quantity     Decimal  @db.Decimal(18, 4)
+  unitPrice    Decimal  @db.Decimal(18, 2)
+  discountRate Decimal  @default(0) @db.Decimal(7, 4)
+  taxRate      Decimal  @default(0) @db.Decimal(7, 4)
+  subtotal     Decimal  @db.Decimal(18, 2)
+  discount     Decimal  @db.Decimal(18, 2)
+  tax          Decimal  @db.Decimal(18, 2)
+  total        Decimal  @db.Decimal(18, 2)
+  position     Int
+
+  @@index([invoiceId, companyId])
+  @@index([companyId, productId])
+}
+
+model Payment {
+  barPayment BarPayment?
+
+  id          String        @id @default(cuid())
+  advanceId String? @unique
+  companyId   String
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  invoiceId   String
+  invoice     Invoice       @relation(fields: [invoiceId, companyId], references: [id, companyId], onDelete: Restrict)
+  amount      Decimal       @db.Decimal(18, 2)
+  currency    Currency
+  paymentDate DateTime      @db.Date
+  method      PaymentMethod
+  reference   String        @default("")
+  account     String        @default("")
+  notes       String        @default("")
+  receipt     Receipt?
+  deletedAt   DateTime?
+  createdAt   DateTime      @default(now())
+
+  @@unique([id, companyId])
+  @@index([invoiceId, companyId])
+  @@index([companyId, paymentDate])
+}
+
+model Receipt {
+  id               String    @id @default(cuid())
+  companyId        String
+  company          Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  paymentId        String    @unique
+  payment          Payment   @relation(fields: [paymentId, companyId], references: [id, companyId], onDelete: Restrict)
+  invoiceId        String
+  invoice          Invoice   @relation(fields: [invoiceId, companyId], references: [id, companyId], onDelete: Restrict)
+  documentNumber   String
+  balanceRemaining Decimal   @db.Decimal(18, 2)
+  voidedAt         DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@unique([companyId, documentNumber])
+  @@unique([paymentId, companyId])
+  @@index([companyId, createdAt])
+  @@index([invoiceId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  entityType String
+  entityId   String
+  action     String
+  metadata   Json
+  timestamp  DateTime @default(now())
+
+  @@index([companyId, timestamp])
+  @@index([companyId, entityType, entityId])
+}
+
+model CalendarConnection {
+  companyId String @id
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  encryptedUrl String @default("")
+  encryptedTokens String @default("")
+  calendarId String @default("primary")
+  updatedAt DateTime @updatedAt
+}
+
+model CashDay {
+  movements CashMovement[]
+  @@unique([id,companyId])
+ id String @id @default(cuid())
+ companyId String
+ company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+ day DateTime @db.Date
+ openedBy String
+ openedAt DateTime @default(now())
+ openingNIO Decimal @db.Decimal(18,2)
+ openingUSD Decimal @db.Decimal(18,2)
+ status String @default("OPEN")
+ closedAt DateTime?
+ closedBy String?
+ automatic Boolean @default(false)
+ closeData Json?
+ reviewedBy String?
+ reviewedAt DateTime?
+ reviewStatus String @default("PENDING")
+ reviewNotes String @default("")
+ @@unique([companyId,day])
+ @@index([companyId,status])
+}
+model CustomerAdvance {
+ id String @id @default(cuid())
+ companyId String
+ company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+ customerId String
+ customer Customer @relation(fields:[customerId,companyId],references:[id,companyId],onDelete:Restrict)
+ amount Decimal @db.Decimal(18,2)
+ currency Currency
+ method PaymentMethod
+ paymentDate DateTime @db.Date
+ requestId String
+ createdAt DateTime @default(now())
+ appliedInvoiceId String?
+ appliedAt DateTime?
+ appliedAmount Decimal? @db.Decimal(18,2)
+ notes String @default("")
+ @@unique([companyId,requestId])
+ @@index([companyId,customerId])
+}
+model Appointment {
+ id String @id @default(cuid())
+ companyId String
+ company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+ customerId String?
+ customer Customer? @relation(fields:[customerId,companyId],references:[id,companyId],onDelete:Restrict)
+ invoiceId String? @unique
+ invoice Invoice? @relation(fields:[invoiceId,companyId],references:[id,companyId],onDelete:Restrict)
+ title String
+ start DateTime
+ end DateTime
+ status String @default("ACTIVE")
+ googleEventId String?
+ syncStatus String @default("LOCAL")
+ version Int @default(1)
+ syncedVersion Int @default(0)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@unique([invoiceId,companyId])
+ @@index([companyId,start])
+ @@unique([companyId,googleEventId])
+}
+model ReportDelivery {
+  payload Json?
+  firstAttemptAt DateTime?
+ id String @id @default(cuid())
+ companyId String
+ company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+ kind String
+ period String
+ status String @default("PENDING")
+ attempts Int @default(0)
+ providerId String?
+ lastError String @default("")
+ lockedAt DateTime?
+ createdAt DateTime @default(now())
+ sentAt DateTime?
+ @@unique([companyId,kind,period])
+ @@index([status,createdAt])
+}
+
+model MessagingConnection {
+ id String @id @default(cuid())
+ companyId String @unique
+ company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+ encryptedToken String
+ whatsappPhoneId String? @unique
+ whatsappBusinessId String?
+ instagramId String? @unique
+ facebookPageId String?
+ encryptedVerifyToken String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+}
+model MessageThread {
+ id String @id @default(cuid())
+ companyId String
+ company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+ channel String
+ contactId String
+ name String @default("")
+ lastIncomingAt DateTime?
+ messages ClinicMessage[]
+ updatedAt DateTime @updatedAt
+ @@unique([companyId,channel,contactId])
+ @@index([companyId,updatedAt])
+}
+model ClinicMessage {
+ id String @id @default(cuid())
+ companyId String
+ threadId String
+ thread MessageThread @relation(fields:[threadId],references:[id],onDelete:Restrict)
+ providerId String? @unique
+ requestId String? @unique
+ direction String
+ text String
+ status String @default("RECEIVED")
+ createdAt DateTime @default(now())
+ @@index([companyId,threadId,createdAt])
+}
+
+model CashMovement {
+ id String @id @default(cuid())
+ companyId String
+ company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+ cashDayId String
+ cashDay CashDay @relation(fields:[cashDayId,companyId],references:[id,companyId],onDelete:Restrict)
+ amount Decimal @db.Decimal(18,2)
+ currency Currency
+ reason String
+ purpose String
+ recipient String @default("")
+ createdBy String
+ requestId String
+ createdAt DateTime @default(now())
+ @@unique([companyId,requestId])
+ @@index([companyId,cashDayId])
+}
+
+enum BarKind {
+  DRINK
+  FOOD
+  COMBO
+}
+enum OrderStatus {
+  OPEN
+  IN_PROGRESS
+  READY
+  SERVED
+  PAID
+  CANCELLED
+}
+enum KitchenStatus {
+  PENDING
+  PREPARING
+  READY
+  SERVED
+}
+model BarCategory {
+  id String @id @default(cuid())
+  companyId String
+  company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+  name String
+  kind BarKind
+  products BarProduct[]
+  @@unique([id,companyId])
+  @@unique([companyId,kind,name])
+}
+model Supplier {
+  id String @id @default(cuid())
+  companyId String
+  company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+  name String
+  contact String @default("")
+  active Boolean @default(true)
+  products BarProduct[]
+  @@unique([id,companyId])
+  @@unique([companyId,name])
+}
+model BarProduct {
+  id String @id
+  companyId String
+  company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+  product Product @relation(fields:[id,companyId],references:[id,companyId],onDelete:Restrict)
+  kind BarKind
+  categoryId String
+  category BarCategory @relation(fields:[categoryId,companyId],references:[id,companyId],onDelete:Restrict)
+  supplierId String?
+  supplier Supplier? @relation(fields:[supplierId,companyId],references:[id,companyId],onDelete:Restrict)
+  presentation String @default("")
+  cost Decimal @default(0) @db.Decimal(18,2)
+  stock Decimal @default(0) @db.Decimal(18,4)
+  minimum Decimal @default(0) @db.Decimal(18,4)
+  trackStock Boolean @default(false)
+  available Boolean @default(true)
+  image String @default("")
+  notes String @default("")
+  customizations Json @default("[]")
+  components RecipePart[] @relation("Recipe")
+  usedIn RecipePart[] @relation("Ingredient")
+  movements InventoryMovement[]
+  orderItems BarOrderItem[]
+  @@unique([id,companyId])
+}
+model RecipePart {
+  id String @id @default(cuid())
+  companyId String
+  parentId String
+  parent BarProduct @relation("Recipe",fields:[parentId,companyId],references:[id,companyId],onDelete:Restrict)
+  ingredientId String
+  ingredient BarProduct @relation("Ingredient",fields:[ingredientId,companyId],references:[id,companyId],onDelete:Restrict)
+  quantity Decimal @db.Decimal(18,4)
+  @@unique([parentId,ingredientId])
+}
+model DiningTable {
+  id String @id @default(cuid())
+  companyId String
+  company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+  name String
+  seats Int @default(4)
+  reserved Boolean @default(false)
+  active Boolean @default(true)
+  orders BarOrder[]
+  @@unique([id,companyId])
+  @@unique([companyId,name])
+}
+model BusinessDay {
+  id String @id @default(cuid())
+  companyId String
+  company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+  date DateTime @db.Date
+  openedAt DateTime @default(now())
+  openedBy String
+  opening Decimal @db.Decimal(18,2)
+  notes String @default("")
+  status String @default("OPEN")
+  closedAt DateTime?
+  closedBy String?
+  closeData Json?
+  orders BarOrder[]
+  @@unique([id,companyId])
+  @@index([companyId,date])
+}
+model BarOrder {
+  id String @id @default(cuid())
+  companyId String
+  company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+  businessDayId String
+  businessDay BusinessDay @relation(fields:[businessDayId,companyId],references:[id,companyId],onDelete:Restrict)
+  number Int
+  tableId String?
+  table DiningTable? @relation(fields:[tableId,companyId],references:[id,companyId],onDelete:Restrict)
+  channel String @default("TABLE")
+  deliverySource String @default("")
+  deliveryReference String @default("")
+  customerId String?
+  customerName String @default("")
+  responsibleId String
+  responsibleName String
+  status OrderStatus @default(OPEN)
+  openedAt DateTime @default(now())
+  closedAt DateTime?
+  notes String @default("")
+  discountRate Decimal @default(0) @db.Decimal(7,4)
+  tip Decimal @default(0) @db.Decimal(18,2)
+  subtotal Decimal @default(0) @db.Decimal(18,2)
+  discountTotal Decimal @default(0) @db.Decimal(18,2)
+  taxTotal Decimal @default(0) @db.Decimal(18,2)
+  total Decimal @default(0) @db.Decimal(18,2)
+  invoiceId String? @unique
+  invoice Invoice? @relation(fields:[invoiceId,companyId],references:[id,companyId],onDelete:Restrict)
+  formalInvoice Boolean @default(false)
+  stockApplied Boolean @default(false)
+  items BarOrderItem[]
+  dispatches KitchenDispatch[]
+  payments BarPayment[]
+  @@unique([id,companyId])
+  @@unique([invoiceId,companyId])
+  @@unique([companyId,number])
+  @@index([companyId,businessDayId])
+}
+model BarOrderItem {
+  id String @id @default(cuid())
+  companyId String
+  orderId String
+  order BarOrder @relation(fields:[orderId,companyId],references:[id,companyId],onDelete:Restrict)
+  productId String
+  product BarProduct @relation(fields:[productId,companyId],references:[id,companyId],onDelete:Restrict)
+  name String
+  kind BarKind
+  quantity Int
+  unitPrice Decimal @db.Decimal(18,2)
+  taxRate Decimal @default(0) @db.Decimal(7,4)
+  notes String @default("")
+  customizations Json @default("[]")
+  kitchenStatus KitchenStatus @default(PENDING)
+  inventoryParts Json
+  createdAt DateTime @default(now())
+  @@unique([id,companyId])
+}
+model BarPayment {
+  id String @id @default(cuid())
+  companyId String
+  orderId String
+  order BarOrder @relation(fields:[orderId,companyId],references:[id,companyId],onDelete:Restrict)
+  amount Decimal @db.Decimal(18,2)
+  method PaymentMethod
+  person String @default("")
+  reference String @default("")
+  requestId String
+  paymentId String @unique
+  payment Payment @relation(fields:[paymentId,companyId],references:[id,companyId],onDelete:Restrict)
+  createdAt DateTime @default(now())
+  @@unique([companyId,requestId])
+  @@unique([paymentId,companyId])
+}
+model InventoryMovement {
+  id String @id @default(cuid())
+  companyId String
+  company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+  productId String
+  product BarProduct @relation(fields:[productId,companyId],references:[id,companyId],onDelete:Restrict)
+  type String
+  quantity Decimal @db.Decimal(18,4)
+  balance Decimal @db.Decimal(18,4)
+  reason String
+  userId String
+  orderId String?
+  createdAt DateTime @default(now())
+  @@index([companyId,createdAt])
+}
+
+model KitchenDispatch {
+  id String @id @default(cuid())
+  companyId String
+  company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
+  orderId String
+  order BarOrder @relation(fields:[orderId,companyId],references:[id,companyId],onDelete:Restrict)
+  requestId String
+  createdBy String
+  createdAt DateTime @default(now())
+  items Json
+  @@unique([companyId,requestId])
+  @@index([companyId,orderId])
+}
