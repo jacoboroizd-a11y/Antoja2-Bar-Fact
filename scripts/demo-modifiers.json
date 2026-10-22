@@ -1,0 +1,39 @@
+{
+  "PLT-001": [
+    { "key": "no-onion", "label": "cebolla", "kind": "REMOVE", "price": "0" },
+    { "key": "no-tomato", "label": "tomate", "kind": "REMOVE", "price": "0" },
+    { "key": "no-lettuce", "label": "lechuga", "kind": "REMOVE", "price": "0" },
+    { "key": "no-sauce", "label": "salsa", "kind": "REMOVE", "price": "0" },
+    { "key": "no-cheese", "label": "queso", "kind": "REMOVE", "price": "0" },
+    { "key": "cheese", "label": "queso", "kind": "EXTRA", "price": "25" },
+    { "key": "bacon", "label": "tocino", "kind": "EXTRA", "price": "40" }
+  ],
+  "DEMO-002": [
+    {
+      "key": "bathed",
+      "label": "Bañadas en BBQ",
+      "kind": "OPTION",
+      "group": "Preparación",
+      "required": true,
+      "price": "0"
+    },
+    {
+      "key": "sauce-aside",
+      "label": "Salsa BBQ aparte",
+      "kind": "OPTION",
+      "group": "Preparación",
+      "required": true,
+      "price": "0"
+    },
+    {
+      "key": "dry",
+      "label": "Sin salsa",
+      "kind": "OPTION",
+      "group": "Preparación",
+      "required": true,
+      "price": "0"
+    },
+    { "key": "no-celery", "label": "apio", "kind": "REMOVE", "price": "0" },
+    { "key": "ranch", "label": "aderezo ranch", "kind": "EXTRA", "price": "20" }
+  ]
+}

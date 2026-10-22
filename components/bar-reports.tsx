@@ -1,5 +1,7 @@
 "use client";
-import { useState } from "react";
+import { stockLabel } from "@/lib/stock-labels";
+import { SalesProjection } from "./sales-forecast";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "./ui/button";
@@ -47,6 +49,28 @@ export function BarReports({ report: r }: { report: Report }) {
   const router = useRouter();
   const [period, setPeriod] = useState(r.period);
   const m = r.metrics;
+  const drinkClosings = r.closings.flatMap((c) => {
+    const data = c.closeData as {
+      beverages?: {
+        name: string;
+        expected: string;
+        counted: string;
+        difference: string;
+      }[];
+    } | null;
+    return (data?.beverages || []).map((b) => [
+      c.date,
+      b.name,
+      Number(b.expected),
+      Number(b.counted),
+      Number(b.difference),
+    ]);
+  });
+  useEffect(() => {
+    if (r.forecast?.day.status !== "live") return;
+    const timer = setInterval(() => router.refresh(), 60000);
+    return () => clearInterval(timer);
+  }, [router, r.forecast?.day.status]);
   const methods: Record<string, string> = {
     CASH: "Efectivo",
     CARD: "Tarjeta",
@@ -66,6 +90,47 @@ export function BarReports({ report: r }: { report: Report }) {
     const rows: (string | number)[][] = [
       ["Antoja2 POS", r.label],
       ["Generado", r.generatedAt],
+      [],
+      ...(r.forecast
+        ? [
+            ["Proyección jornada", r.forecast.day.date],
+            ["Estado proyección", r.forecast.day.status],
+            [
+              "Cierre estimado (no contabilizado)",
+              r.forecast.day.status === "completed"
+                ? "Jornada terminada"
+                : (r.forecast.day.estimate ?? "Historial insuficiente"),
+            ],
+            ["Rango inferior orientativo", r.forecast.day.lower ?? ""],
+            ["Rango superior orientativo", r.forecast.day.upper ?? ""],
+            ["Días de historial", r.forecast.day.count],
+            [
+              "Ventas proyectadas resto del mes",
+              r.forecast.month?.remaining ?? "",
+            ],
+            ["Cierre estimado del mes", r.forecast.month?.total ?? ""],
+            [],
+          ]
+        : []),
+      ["Cierre de bebidas", "Bebida", "Esperado", "Contado", "Diferencia"],
+      ...drinkClosings,
+      [],
+      [
+        "Receta",
+        "Orden",
+        "Unidades",
+        "Venta neta",
+        "Costo ingredientes",
+        "Margen",
+      ],
+      ...r.ingredientCosts.map((i) => [
+        i.name,
+        i.order,
+        i.quantity,
+        i.net,
+        i.cost,
+        i.margin,
+      ]),
       [],
       ["Resumen", "C$"],
       ["Ventas pagadas", m.sales],
@@ -189,6 +254,7 @@ export function BarReports({ report: r }: { report: Report }) {
           <Button type="submit">Consultar</Button>
         </form>
       </div>
+      {r.forecast && <SalesProjection forecast={r.forecast} />}
       <p className="text-xs text-slate-500">
         Las ventas incluyen únicamente órdenes pagadas. El total incluye
         impuestos y propinas; los cobros incluyen abonos y cortesías. Una
@@ -334,13 +400,22 @@ export function BarReports({ report: r }: { report: Report }) {
           Movimientos de inventario del período
         </h2>
         <Table
-          headers={["Fecha", "Producto", "Tipo", "Cantidad", "Saldo", "Motivo"]}
+          headers={[
+            "Fecha",
+            "Producto",
+            "Tipo",
+            "Ubicación",
+            "Cantidad",
+            "Saldo",
+            "Motivo",
+          ]}
           rows={r.movements.map((v) => [
             new Date(v.date).toLocaleString("es-NI", {
               timeZone: "America/Managua",
             }),
             v.product,
-            v.type,
+            stockLabel(v.type),
+            v.location === "WAREHOUSE" ? "Almacén" : "Para vender",
             v.quantity,
             v.balance,
             v.reason,
@@ -373,6 +448,42 @@ export function BarReports({ report: r }: { report: Report }) {
           ])}
         />
       </section>
+      {drinkClosings.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="font-semibold">Conteos de bebidas al cierre</h2>
+          <Table
+            headers={["Jornada", "Bebida", "Esperado", "Contado", "Diferencia"]}
+            rows={drinkClosings}
+          />
+        </section>
+      )}
+      {r.ingredientCosts.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="font-semibold">Costo de ingredientes · opcional</h2>
+          <p className="text-xs text-slate-500">
+            Solo ventas con costo de receta registrado. Margen antes de otros
+            gastos; no es una salida adicional de caja.
+          </p>
+          <Table
+            headers={[
+              "Plato",
+              "Orden",
+              "Cantidad",
+              "Venta neta",
+              "Costo",
+              "Margen",
+            ]}
+            rows={r.ingredientCosts.map((i) => [
+              i.name,
+              i.order,
+              i.quantity,
+              formatMoney(i.net),
+              formatMoney(i.cost),
+              formatMoney(i.margin),
+            ])}
+          />
+        </section>
+      )}
     </div>
   );
 }

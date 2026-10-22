@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { ingredientDemo } from "./ingredient-demo";
+import demoModifiers from "./demo-modifiers.json";
 import demoMenu from "./demo-menu.json";
 import { hash } from "bcryptjs";
 import { randomUUID } from "node:crypto";
@@ -54,6 +56,22 @@ async function main() {
           : [],
     });
   }
+  for (const [sku, options] of Object.entries(demoModifiers)) {
+    const row = await db.barProduct.findFirst({
+      where: { companyId: company.id, product: { sku } },
+    });
+    if (row) {
+      const current = row.customizations as { key: string }[];
+      const missing = options.filter(
+        (o) => !current.some((c) => c.key === o.key),
+      );
+      if (missing.length)
+        await db.barProduct.update({
+          where: { id: row.id },
+          data: { customizations: [...current, ...missing] },
+        });
+    }
+  }
   const burger = await db.barProduct.findFirstOrThrow({
     where: { companyId: company.id, product: { sku: "PLT-001" } },
   });
@@ -82,8 +100,26 @@ async function main() {
     )
       continue;
     const time = new Date(date + "T12:00:00-06:00");
-    const cmd = (action: string, input: unknown, at = time) =>
-      barCommand(ctx, action, input, at);
+    const cmd = async (action: string, input: unknown, at = time) => {
+      if (action === "close") {
+        const drinks = await db.barProduct.findMany({
+          where: { companyId: company.id, kind: "DRINK", trackStock: true },
+        });
+        return barCommand(
+          ctx,
+          action,
+          {
+            ...(input as Record<string, unknown>),
+            inventoryCounts: drinks.map((p) => ({
+              productId: p.id,
+              counted: p.stock.toString(),
+            })),
+          },
+          at,
+        );
+      }
+      return barCommand(ctx, action, input, at);
+    };
     await cmd("open", {
       opening: "1000",
       notes: "DEMO: datos ficticios para presentación",
@@ -215,6 +251,7 @@ async function main() {
       quantity: 2,
     });
   }
+  await ingredientDemo(ctx);
   const staffPassword = process.env.SEED_BILLING_PASSWORD;
   if (!staffPassword)
     throw new Error("Configura SEED_BILLING_PASSWORD para usuarios demo.");

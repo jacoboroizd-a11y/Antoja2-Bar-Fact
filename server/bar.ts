@@ -1,3 +1,9 @@
+import {
+  selectModifiers,
+  modifierLabel,
+  type Modifier,
+} from "@/lib/bar-modifiers";
+import { salesForecast } from "./sales-forecast";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
@@ -108,24 +114,34 @@ async function movement(
   type: string,
   reason: string,
   orderId?: string,
+  location: "SALE" | "WAREHOUSE" = "SALE",
 ) {
   const product = await tx.barProduct.findFirst({
     where: { id: productId, companyId: ctx.companyId },
   });
   if (!product || !product.trackStock)
     throw new AppError("Producto de inventario no encontrado.", 404);
-  const balance = decimal(product.stock.toString()).plus(delta);
+  const balance = decimal(
+    (location === "WAREHOUSE"
+      ? product.warehouseStock
+      : product.stock
+    ).toString(),
+  ).plus(delta);
   if (balance.lt(0))
     throw new AppError("Existencias insuficientes. Revisa el inventario.", 409);
   await tx.barProduct.update({
     where: { id: productId },
-    data: { stock: balance.toFixed(4) },
+    data:
+      location === "WAREHOUSE"
+        ? { warehouseStock: balance.toFixed(4) }
+        : { stock: balance.toFixed(4) },
   });
   await tx.inventoryMovement.create({
     data: {
       companyId: ctx.companyId,
       productId,
       type,
+      location,
       quantity: delta,
       balance: balance.toFixed(4),
       reason,
@@ -135,9 +151,100 @@ async function movement(
   });
   await audit(tx, ctx, "Product", productId, "INVENTORY_" + type, {
     quantity: delta,
+    location,
     balance: balance.toFixed(4),
     reason,
     ...(orderId ? { orderId } : {}),
+  });
+}
+async function assertIngredientStock(
+  tx: Tx,
+  ctx: Context,
+  parts: { productId: string; quantity: string }[],
+  count: number,
+  excludeItem?: string,
+  allTracked = false,
+) {
+  const raw = await tx.barProduct.findMany({
+    where: {
+      companyId: ctx.companyId,
+      ...(allTracked ? { trackStock: true } : { ingredientOnly: true }),
+      id: { in: parts.map((p) => p.productId) },
+    },
+    include: { product: { select: { name: true } } },
+  });
+  if (!raw.length) return;
+  const pending = await tx.barOrderItem.findMany({
+    where: {
+      companyId: ctx.companyId,
+      ...(excludeItem ? { id: { not: excludeItem } } : {}),
+      order: { status: { notIn: ["PAID", "CANCELLED"] } },
+    },
+    select: { quantity: true, inventoryParts: true },
+  });
+  for (const ingredient of raw) {
+    const reserved = pending.reduce(
+      (n, item) =>
+        n.plus(
+          (item.inventoryParts as { productId: string; quantity: string }[])
+            .filter((p) => p.productId === ingredient.id)
+            .reduce(
+              (m, p) => m.plus(decimal(p.quantity).times(item.quantity)),
+              decimal(0),
+            ),
+        ),
+      decimal(0),
+    );
+    const needed = parts
+      .filter((p) => p.productId === ingredient.id)
+      .reduce((n, p) => n.plus(decimal(p.quantity).times(count)), decimal(0));
+    if (decimal(ingredient.stock.toString()).minus(reserved).lt(needed))
+      throw new AppError(
+        "Agotado: no alcanza " + ingredient.product.name + " para este pedido.",
+        409,
+      );
+  }
+}
+const beverageCounts = z
+  .array(z.object({ productId: id, counted: quantity }))
+  .max(5000)
+  .optional();
+async function closeBeverages(
+  tx: Tx,
+  ctx: Context,
+  input: z.infer<typeof beverageCounts>,
+) {
+  const products = await tx.barProduct.findMany({
+    where: {
+      companyId: ctx.companyId,
+      kind: "DRINK",
+      trackStock: true,
+      OR: [{ product: { active: true } }, { stock: { gt: 0 } }],
+    },
+    include: { product: { select: { name: true, unit: true } } },
+    orderBy: { product: { name: "asc" } },
+  });
+  if (!products.length) return [];
+  if (
+    !input ||
+    input.length !== products.length ||
+    new Set(input.map((i) => i.productId)).size !== input.length ||
+    input.some((i) => !products.some((p) => p.id === i.productId))
+  )
+    throw new AppError(
+      "Completá el conteo físico de todas las bebidas antes de cerrar.",
+      409,
+    );
+  return products.map((p) => {
+    const counted = input.find((i) => i.productId === p.id)!.counted;
+    return {
+      productId: p.id,
+      name: p.product.name,
+      unit: p.product.unit,
+      expected: p.stock.toFixed(4),
+      counted: decimal(counted).toFixed(4),
+      difference: decimal(counted).minus(p.stock.toString()).toFixed(4),
+    };
   });
 }
 export async function barCommand(
@@ -153,7 +260,15 @@ export async function barCommand(
     ? "cash"
     : action === "adjust-close"
       ? "adjustClose"
-      : ["product", "category", "supplier", "stock"].includes(action)
+      : [
+            "product",
+            "category",
+            "supplier",
+            "stock",
+            "availability",
+            "inventory-mode",
+            "warehouse",
+          ].includes(action)
         ? "catalog"
         : action === "kitchen"
           ? "kitchen"
@@ -236,6 +351,175 @@ export async function barCommand(
       });
       return { id: row.id };
     }
+    if (action === "warehouse") {
+      requireBar(ctx, "catalog");
+      const data = z
+        .object({
+          requestId: z.uuid(),
+          productId: id,
+          operation: z.enum(["PURCHASE", "TO_SALE", "TO_WAREHOUSE", "LOSS"]),
+          quantity: quantity.refine((v) => Number(v) > 0),
+          boxes: z.boolean().default(false),
+          packSize: z.coerce.number().int().min(1).max(1000).default(1),
+          reason: name,
+        })
+        .parse(input);
+      const fingerprint = createHash("sha256")
+        .update(JSON.stringify(data))
+        .digest("hex");
+      const previous = await tx.auditLog.findFirst({
+        where: {
+          companyId: ctx.companyId,
+          entityType: "WarehouseOperation",
+          entityId: data.requestId,
+          action: "WAREHOUSE_OPERATION",
+        },
+      });
+      if (previous) {
+        if (
+          (previous.metadata as { fingerprint: string }).fingerprint !==
+          fingerprint
+        )
+          throw new AppError(
+            "Esta solicitud ya se usó para otro movimiento.",
+            409,
+          );
+        return { ok: true };
+      }
+      const product = await tx.barProduct.findFirst({
+        where: {
+          id: data.productId,
+          companyId: ctx.companyId,
+          trackStock: true,
+        },
+      });
+      if (!product)
+        throw new AppError("Producto de inventario no encontrado.", 404);
+      const units = decimal(data.quantity)
+        .times(data.boxes ? data.packSize : 1)
+        .toFixed(4);
+      if (data.operation === "PURCHASE")
+        await movement(
+          tx,
+          ctx,
+          product.id,
+          units,
+          "WAREHOUSE_PURCHASE",
+          data.reason,
+          undefined,
+          "WAREHOUSE",
+        );
+      else if (data.operation === "TO_SALE") {
+        await movement(
+          tx,
+          ctx,
+          product.id,
+          "-" + units,
+          "TRANSFER_OUT",
+          data.reason,
+          undefined,
+          "WAREHOUSE",
+        );
+        await movement(tx, ctx, product.id, units, "TRANSFER_IN", data.reason);
+      } else if (data.operation === "TO_WAREHOUSE") {
+        await assertIngredientStock(
+          tx,
+          ctx,
+          [{ productId: product.id, quantity: units }],
+          1,
+          undefined,
+          true,
+        );
+        await movement(
+          tx,
+          ctx,
+          product.id,
+          "-" + units,
+          "TRANSFER_OUT",
+          data.reason,
+        );
+        await movement(
+          tx,
+          ctx,
+          product.id,
+          units,
+          "TRANSFER_IN",
+          data.reason,
+          undefined,
+          "WAREHOUSE",
+        );
+      } else
+        await movement(
+          tx,
+          ctx,
+          product.id,
+          "-" + units,
+          "WAREHOUSE_LOSS",
+          data.reason,
+          undefined,
+          "WAREHOUSE",
+        );
+      if (data.boxes)
+        await tx.barProduct.update({
+          where: { id: product.id },
+          data: { packSize: data.packSize },
+        });
+      await audit(
+        tx,
+        ctx,
+        "WarehouseOperation",
+        data.requestId,
+        "WAREHOUSE_OPERATION",
+        {
+          fingerprint,
+          productId: product.id,
+          operation: data.operation,
+          units,
+          boxes: data.boxes,
+          quantity: data.quantity,
+          packSize: data.packSize,
+          reason: data.reason,
+        },
+      );
+      return { ok: true };
+    }
+    if (action === "inventory-mode") {
+      requireBar(ctx, "catalog");
+      await tx.companySettings.update({
+        where: { companyId: ctx.companyId },
+        data: { fullInventory: true },
+      });
+      await audit(
+        tx,
+        ctx,
+        "CompanySettings",
+        ctx.companyId,
+        "INGREDIENT_INVENTORY_ENABLED",
+      );
+      return { ok: true };
+    }
+    if (action === "availability") {
+      const data = z
+        .object({ productId: id, available: z.boolean() })
+        .parse(input);
+      const product = await tx.barProduct.findFirst({
+        where: { id: data.productId, companyId: ctx.companyId },
+      });
+      if (!product) throw new AppError("Producto no encontrado.", 404);
+      await tx.barProduct.update({
+        where: { id: product.id },
+        data: { available: data.available },
+      });
+      await audit(
+        tx,
+        ctx,
+        "BarProduct",
+        product.id,
+        "PRODUCT_AVAILABILITY_CHANGED",
+        { before: product.available, available: data.available },
+      );
+      return { ok: true };
+    }
     if (action === "category") {
       const data = z.object({ name, kind }).parse(input);
       const row = await tx.barCategory.create({
@@ -265,10 +549,8 @@ export async function barCommand(
           presentation: text,
           unit: name.default("unidad"),
           cost: money,
-          price: money.refine(
-            (v) => Number(v) > 0,
-            "El precio debe ser positivo; usa cortesía al cobrar.",
-          ),
+          price: money,
+          ingredientOnly: z.boolean().default(false),
           minimum: quantity.default("0"),
           initialStock: quantity.default("0"),
           active: z.boolean().default(true),
@@ -287,7 +569,9 @@ export async function barCommand(
               z.object({
                 key: name,
                 label: name,
-                kind: z.enum(["REMOVE", "EXTRA"]),
+                kind: z.enum(["REMOVE", "EXTRA", "OPTION"]),
+                group: z.string().trim().max(100).optional(),
+                required: z.boolean().optional(),
                 price: money.default("0"),
               }),
             )
@@ -304,6 +588,17 @@ export async function barCommand(
             .default([]),
         })
         .parse(input);
+      if (!data.ingredientOnly && Number(data.price) <= 0)
+        throw new AppError("El precio debe ser positivo.");
+      if (data.ingredientOnly) {
+        const settings = await tx.companySettings.findUniqueOrThrow({
+          where: { companyId: ctx.companyId },
+        });
+        if (!settings.fullInventory)
+          throw new AppError("Activá primero el inventario de ingredientes.");
+        if (data.kind !== "FOOD" || !data.trackStock || data.components.length)
+          throw new AppError("Ingrediente de inventario inválido.");
+      }
       const category = await tx.barCategory.findFirst({
         where: {
           id: data.categoryId,
@@ -344,6 +639,10 @@ export async function barCommand(
         : null;
       if (data.id && !existing)
         throw new AppError("Producto no encontrado.", 404);
+      if (existing && existing.ingredientOnly !== data.ingredientOnly)
+        throw new AppError(
+          "No se puede convertir un ingrediente en un producto del menú.",
+        );
       if (existing && existing.trackStock !== data.trackStock)
         throw new AppError(
           "No se puede cambiar el control de inventario de un producto existente.",
@@ -370,8 +669,7 @@ export async function barCommand(
         sku: data.sku,
         description: data.description,
         category: category.name,
-        type:
-          data.kind === "DRINK" ? ("PRODUCT" as const) : ("SERVICE" as const),
+        type: data.trackStock ? ("PRODUCT" as const) : ("SERVICE" as const),
         unit: data.unit,
         price: data.price,
         currency: "NIO" as const,
@@ -400,7 +698,23 @@ export async function barCommand(
         categoryId: data.categoryId,
         supplierId: data.supplierId,
         presentation: data.presentation,
-        cost: data.cost,
+        ingredientOnly: data.ingredientOnly,
+        cost:
+          data.components.length && ingredients.some((i) => i.ingredientOnly)
+            ? amount(
+                data.components.reduce(
+                  (n, c) =>
+                    n.plus(
+                      decimal(
+                        ingredients
+                          .find((i) => i.id === c.ingredientId)!
+                          .cost.toString(),
+                      ).times(c.quantity),
+                    ),
+                  decimal(0),
+                ),
+              )
+            : data.cost,
         minimum: data.minimum,
         trackStock: data.trackStock,
         available: data.available,
@@ -511,6 +825,7 @@ export async function barCommand(
           notes: text,
           overrideReason: text,
           previousCounted: money.optional(),
+          inventoryCounts: beverageCounts,
         })
         .parse(input);
       const settings = await tx.companySettings.findUniqueOrThrow({
@@ -553,6 +868,7 @@ export async function barCommand(
               "Cobra o anula las órdenes pendientes antes de reemplazar la caja.",
               409,
             );
+          const beverages = await closeBeverages(tx, ctx, data.inventoryCounts);
           const summary = await daySummary(tx, ctx, previous.id);
           const expected = amount(
             decimal(previous.opening.toString())
@@ -563,6 +879,7 @@ export async function barCommand(
             decimal(data.previousCounted).minus(expected),
           );
           const closeData = {
+            beverages,
             ...summary,
             opening: previous.opening.toFixed(2),
             expected,
@@ -700,7 +1017,13 @@ export async function barCommand(
       return row;
     }
     if (action === "close") {
-      const data = z.object({ counted: money, notes: text }).parse(input);
+      const data = z
+        .object({
+          counted: money,
+          notes: text,
+          inventoryCounts: beverageCounts,
+        })
+        .parse(input);
       const day = await openDay(tx, ctx, now);
       if (
         await tx.barOrder.count({
@@ -715,6 +1038,7 @@ export async function barCommand(
           "Cobra o anula todas las órdenes antes de cerrar.",
           409,
         );
+      const beverages = await closeBeverages(tx, ctx, data.inventoryCounts);
       const summary = await daySummary(tx, ctx, day.id);
       const expected = amount(
         decimal(day.opening.toString())
@@ -723,6 +1047,7 @@ export async function barCommand(
       );
       const difference = amount(decimal(data.counted).minus(expected));
       const closeData = {
+        beverages,
         ...summary,
         opening: day.opening.toFixed(2),
         expected,
@@ -814,6 +1139,59 @@ export async function barCommand(
       );
       if (!pending.length)
         throw new AppError("No hay platos nuevos para enviar a cocina.", 409);
+      const dispatchProducts = await tx.barProduct.findMany({
+        where: {
+          companyId: ctx.companyId,
+          id: { in: pending.map((i) => i.productId) },
+        },
+        select: {
+          id: true,
+          available: true,
+          customizations: true,
+          product: { select: { name: true, active: true } },
+        },
+      });
+      const unavailable = dispatchProducts.filter(
+        (p) => !p.available || !p.product.active,
+      );
+      if (unavailable.length)
+        throw new AppError(
+          "No se envió la comanda. Productos agotados o retirados del menú: " +
+            unavailable.map((p) => p.product.name).join(", ") +
+            ". Quitalos o reemplazalos antes de enviar.",
+          409,
+        );
+      for (const item of pending) {
+        await assertIngredientStock(
+          tx,
+          ctx,
+          item.inventoryParts as { productId: string; quantity: string }[],
+          item.quantity,
+          item.id,
+        );
+        const product = dispatchProducts.find((p) => p.id === item.productId);
+        if (!product) throw new AppError("Producto no encontrado.", 404);
+        const options = product.customizations as Modifier[];
+        const saved = item.customizations as Modifier[];
+        try {
+          selectModifiers(
+            [
+              ...options,
+              ...saved.filter((c) => !options.some((o) => o.key === c.key)),
+            ],
+            saved.map((c) => c.key),
+          );
+        } catch (error) {
+          throw new AppError(
+            item.name +
+              ": " +
+              (error instanceof Error
+                ? error.message
+                : "Revisá su preparación."),
+            409,
+          );
+        }
+      }
       const dispatch = await tx.kitchenDispatch.create({
         data: {
           companyId: ctx.companyId,
@@ -901,11 +1279,12 @@ export async function barCommand(
     }
     editable(order);
     await openDay(tx, ctx, now, action !== "cancel");
-    if (action === "add-item") {
+    if (action === "add-item" || action === "update-item") {
       const data = z
         .object({
           choices: z.array(name).max(40).default([]),
           productId: id,
+          itemId: id.optional(),
           quantity: z.coerce.number().int().min(1).max(1000),
           notes: text,
         })
@@ -914,71 +1293,164 @@ export async function barCommand(
         where: {
           id: data.productId,
           companyId: ctx.companyId,
-          available: true,
-          product: { active: true },
+          ingredientOnly: false,
+          ...(action === "add-item"
+            ? { available: true, product: { active: true } }
+            : {}),
         },
-        include: { product: { include: { tax: true } }, components: true },
+        include: {
+          product: { include: { tax: true } },
+          components: { include: { ingredient: true } },
+        },
       });
       if (!p) throw new AppError("Producto no disponible.", 404);
+      const previous =
+        action === "update-item"
+          ? order.items.find(
+              (i) => i.id === data.itemId && i.productId === p.id,
+            )
+          : null;
+      if (action === "update-item" && !previous)
+        throw new AppError("Artículo no encontrado.", 404);
+      if (previous?.kind === "FOOD" && previous.kitchenStatus !== "PENDING")
+        requireBar(ctx, "catalog");
       const parts = p.trackStock
         ? [{ productId: p.id, quantity: "1" }]
         : p.components.map((c) => ({
             productId: c.ingredientId,
             quantity: c.quantity.toString(),
+            ...(c.ingredient.ingredientOnly
+              ? { unitCost: c.ingredient.cost.toString() }
+              : {}),
           }));
-      const available = p.customizations as {
-        key: string;
-        label: string;
-        kind: string;
-        price: string;
-      }[];
-      if (
-        new Set(data.choices).size !== data.choices.length ||
-        data.choices.some((key) => !available.some((c) => c.key === key))
-      )
-        throw new AppError("Opciones del menú no válidas.");
-      const selected = available.filter((c) => data.choices.includes(c.key));
+      await assertIngredientStock(
+        tx,
+        ctx,
+        (previous?.inventoryParts as
+          { productId: string; quantity: string }[] | undefined) || parts,
+        data.quantity,
+        previous?.id,
+      );
+      const catalogOptions = p.customizations as Modifier[];
+      const savedOptions = (previous?.customizations ||
+        []) as typeof catalogOptions;
+      const available = [
+        ...catalogOptions.map(
+          (c) => savedOptions.find((s) => s.key === c.key) || c,
+        ),
+        ...savedOptions.filter(
+          (c) => !catalogOptions.some((s) => s.key === c.key),
+        ),
+      ];
+      let selected: Modifier[];
+      try {
+        selected = selectModifiers(available, data.choices);
+      } catch (error) {
+        throw new AppError(
+          error instanceof Error ? error.message : "Opciones no válidas.",
+        );
+      }
       const unitPrice = amount(
         selected.reduce(
           (n, c) => n.plus(c.price),
-          decimal(p.product.price.toString()),
+          previous
+            ? decimal(previous.unitPrice.toString()).minus(
+                (previous.customizations as { price: string }[]).reduce(
+                  (n, c) => n.plus(c.price),
+                  decimal(0),
+                ),
+              )
+            : decimal(p.product.price.toString()),
         ),
       );
-      const notes = [
-        ...selected.map(
-          (c) => (c.kind === "REMOVE" ? "Sin " : "Extra ") + c.label,
-        ),
-        data.notes,
-      ]
+      if (decimal(unitPrice).lt(0))
+        throw new AppError(
+          "Revisá el precio autorizado antes de quitar este extra.",
+        );
+      const notes = [...selected.map(modifierLabel), data.notes]
         .filter(Boolean)
         .join(" · ");
-      const item = await tx.barOrderItem.create({
-        data: {
-          companyId: ctx.companyId,
-          orderId: order.id,
-          productId: p.id,
-          name: p.product.name,
-          kind: p.kind,
-          quantity: data.quantity,
-          unitPrice,
-          customizations: selected,
-          taxRate: p.product.tax?.active ? p.product.tax.rate : "0",
-          notes,
-          inventoryParts: parts,
-          kitchenStatus: p.kind === "FOOD" ? "PENDING" : "SERVED",
-        },
-      });
+      const itemData = {
+        companyId: ctx.companyId,
+        orderId: order.id,
+        productId: p.id,
+        name: p.product.name,
+        kind: p.kind,
+        quantity: data.quantity,
+        unitPrice,
+        customizations: selected,
+        taxRate:
+          previous?.taxRate ??
+          (p.product.tax?.active ? p.product.tax.rate : "0"),
+        notes,
+        inventoryParts: previous?.inventoryParts || parts,
+        kitchenStatus:
+          p.kind === "FOOD" ? ("PENDING" as const) : ("SERVED" as const),
+      };
+      if (
+        previous &&
+        previous.quantity === data.quantity &&
+        previous.notes === notes &&
+        previous.unitPrice.equals(unitPrice) &&
+        JSON.stringify(previous.customizations) === JSON.stringify(selected)
+      )
+        return { ...previous, correctionDispatchId: null };
+      const item = previous
+        ? await tx.barOrderItem.update({
+            where: { id: previous.id },
+            data: itemData,
+          })
+        : await tx.barOrderItem.create({ data: itemData });
+      let correctionDispatchId: string | null = null;
+      if (
+        previous &&
+        order.dispatches.some((d) =>
+          (d.items as { id: string }[]).some((i) => i.id === previous.id),
+        )
+      ) {
+        const dispatch = await tx.kitchenDispatch.create({
+          data: {
+            companyId: ctx.companyId,
+            orderId: order.id,
+            requestId: crypto.randomUUID(),
+            createdBy: ctx.userId,
+            createdAt: now,
+            items: [
+              {
+                id: item.id,
+                name: "CAMBIO · " + item.name,
+                quantity: item.quantity,
+                notes: `ANTES: ${previous.quantity} × ${previous.name} · ${previous.notes || "Sin cambios"}\nAHORA: ${item.quantity} × ${item.name} · ${item.notes || "Sin cambios"}\nReemplaza la preparación anterior; no es un plato adicional.`,
+              },
+            ],
+          },
+        });
+        correctionDispatchId = dispatch.id;
+      }
       await tx.barOrder.update({
         where: { id: order.id },
-        data: { status: "OPEN" },
+        data: { status: correctionDispatchId ? "IN_PROGRESS" : "OPEN" },
       });
       await totals(tx, ctx, order.id);
-      await audit(tx, ctx, "BarOrder", order.id, "ORDER_ITEM_ADDED", {
-        itemId: item.id,
-        quantity: data.quantity,
-        productId: p.id,
-      });
-      return item;
+      await audit(
+        tx,
+        ctx,
+        "BarOrder",
+        order.id,
+        previous ? "ORDER_ITEM_UPDATED" : "ORDER_ITEM_ADDED",
+        {
+          itemId: item.id,
+          quantity: data.quantity,
+          productId: p.id,
+          ...(previous
+            ? {
+                before: { quantity: previous.quantity, notes: previous.notes },
+                correctionDispatchId,
+              }
+            : {}),
+        },
+      );
+      return { ...item, correctionDispatchId };
     }
     if (action === "remove-item") {
       const data = z.object({ itemId: id, reason: name }).parse(input);
@@ -1371,7 +1843,7 @@ export async function daySummary(tx: Tx, ctx: Context, dayId: string) {
     open: orders.filter((o) => !closed(o.status)).length,
   };
 }
-export async function barSnapshot(ctx: Context) {
+export async function barSnapshot(ctx: Context, includeForecast = false) {
   requireBar(ctx, "read");
   const [
     day,
@@ -1466,7 +1938,29 @@ export async function barSnapshot(ctx: Context) {
   const settings = await db.companySettings.findUniqueOrThrow({
     where: { companyId: ctx.companyId },
   });
+  const reserved = new Map<string, ReturnType<typeof decimal>>();
+  for (const o of orders.filter(
+    (o) => !["PAID", "CANCELLED"].includes(o.status),
+  ))
+    for (const item of o.items)
+      for (const part of item.inventoryParts as {
+        productId: string;
+        quantity: string;
+      }[])
+        reserved.set(
+          part.productId,
+          (reserved.get(part.productId) || decimal(0)).plus(
+            decimal(part.quantity).times(item.quantity),
+          ),
+        );
+  const free = (p: (typeof products)[number]) =>
+    decimal(p.stock.toString()).minus(reserved.get(p.id) || 0);
   return {
+    fullInventory: settings.fullInventory,
+    forecast:
+      includeForecast && ["ADMIN", "MANAGER", "VIEWER"].includes(ctx.role)
+        ? await salesForecast(ctx)
+        : null,
     expenses: expenses.map(({ attachment, ...e }) => ({
       ...e,
       hasAttachment: Boolean(attachment),
@@ -1485,8 +1979,33 @@ export async function barSnapshot(ctx: Context) {
         ? []
         : products.map((p) => ({
             ...p,
+            availableStock: free(p).toFixed(4),
+            recipeAvailable: !p.components.some((c) => {
+              const raw = products.find((i) => i.id === c.ingredientId);
+              return raw?.ingredientOnly && free(raw).lt(c.quantity.toString());
+            }),
             cost: ["ADMIN", "MANAGER", "VIEWER"].includes(ctx.role)
-              ? p.cost
+              ? p.components.some(
+                  (c) =>
+                    products.find((i) => i.id === c.ingredientId)
+                      ?.ingredientOnly,
+                )
+                ? new Prisma.Decimal(
+                    amount(
+                      p.components.reduce(
+                        (n, c) =>
+                          n.plus(
+                            decimal(
+                              products
+                                .find((i) => i.id === c.ingredientId)
+                                ?.cost.toString() || "0",
+                            ).times(c.quantity.toString()),
+                          ),
+                        decimal(0),
+                      ),
+                    ),
+                  )
+                : p.cost
               : new Prisma.Decimal(0),
           })),
     tables,

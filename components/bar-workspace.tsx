@@ -1,4 +1,10 @@
 "use client";
+import { stockLabel } from "@/lib/stock-labels";
+import { WarehouseInventory } from "./warehouse-inventory";
+import { IngredientInventory } from "./ingredient-inventory";
+import type { Modifier } from "@/lib/bar-modifiers";
+import { ItemCustomizer } from "./item-customizer";
+import { SalesProjection } from "./sales-forecast";
 import { serviceLabel, deliveryNames } from "@/lib/bar-channels";
 import {
   useEffect,
@@ -11,7 +17,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
-  Plus,
   UtensilsCrossed,
   Clock,
   Banknote,
@@ -169,6 +174,13 @@ function Form({
   return (
     <form
       className="space-y-4"
+      onInvalidCapture={(e) => {
+        let parent = (e.target as HTMLElement).parentElement;
+        while (parent) {
+          if (parent instanceof HTMLDetailsElement) parent.open = true;
+          parent = parent.parentElement;
+        }
+      }}
       onSubmit={async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const form = e.currentTarget;
@@ -186,6 +198,58 @@ function Form({
   );
 }
 const value = (d: FormData, k: string) => String(d.get(k) || "");
+const inventoryCounts = (d: FormData) =>
+  [...d.entries()]
+    .filter(([key]) => key.startsWith("drink:"))
+    .map(([key, counted]) => ({
+      productId: key.slice(6),
+      counted: String(counted),
+    }));
+function BeverageCountFields({ s }: { s: Snapshot }) {
+  const drinks = s.products.filter(
+    (p) =>
+      p.kind === "DRINK" &&
+      p.trackStock &&
+      (p.product.active || Number(p.stock) > 0),
+  );
+  return (
+    drinks.length > 0 && (
+      <fieldset className="border-t border-slate-100 pt-4">
+        <legend className="font-semibold text-sm">2. Conteo de bebidas</legend>
+        <p className="text-xs text-slate-500 my-2">
+          Contá las unidades que quedan. Las diferencias se guardan; no cambian
+          las existencias automáticamente. Revisá y ajustá en Inventario si
+          corresponde.
+        </p>
+        <div className="space-y-2">
+          {drinks.map((p) => (
+            <label
+              key={p.id}
+              className="grid grid-cols-[minmax(0,1fr)_100px] items-center gap-3"
+            >
+              <span>
+                {p.product.name}
+                <small className="block text-slate-500">
+                  Esperado: {Number(p.stock)} {p.product.unit}
+                </small>
+              </span>
+              <Input
+                name={`drink:${p.id}`}
+                aria-label={`Contado ${p.product.name}`}
+                placeholder="Contado"
+                inputMode="decimal"
+                type="number"
+                min="0"
+                step="0.0001"
+                required
+              />
+            </label>
+          ))}
+        </div>
+      </fieldset>
+    )
+  );
+}
 export function BarWorkspace({
   ctx,
   initial: s,
@@ -197,6 +261,10 @@ export function BarWorkspace({
   view: string;
   section?: string;
 }) {
+  const [customize, setCustomize] = useState<{
+    product: Snapshot["products"][number];
+    item?: Order["items"][number];
+  } | null>(null);
   const router = useRouter();
   const params = useSearchParams();
   const [selected, setSelected] = useState<string | null>(params.get("order"));
@@ -286,7 +354,9 @@ export function BarWorkspace({
     view === "drinks" ? "DRINK" : view === "food" ? "FOOD" : "COMBO";
   const filteredProducts = s.products.filter(
     (p) =>
-      (view === "inventory" ? p.trackStock : p.kind === kinds) &&
+      (view === "inventory"
+        ? p.trackStock && !p.ingredientOnly
+        : p.kind === kinds && !p.ingredientOnly) &&
       p.product.name.toLowerCase().includes(search.toLowerCase()),
   );
   function rank(
@@ -398,14 +468,6 @@ export function BarWorkspace({
           <Pill tone={s.day ? "green" : "amber"}>
             {s.day ? "Caja abierta" : "Caja cerrada"}
           </Pill>
-          {writable && (
-            <Button asChild size="sm">
-              <Link href="/bar/pos">
-                <Plus size={16} />
-                Nueva orden
-              </Link>
-            </Button>
-          )}
         </div>
       </div>
       {section && (
@@ -425,8 +487,10 @@ export function BarWorkspace({
                 ["categories", "Categorías"],
               ]
             : [
-                ["inventory", "Existencias"],
+                ["inventory", "Para vender"],
+                ["warehouse", "Almacén"],
                 ["movements", "Historial de movimientos"],
+                ["ingredients", "Ingredientes · opcional"],
               ]
           ).map(([tab, label]) => (
             <Link
@@ -434,7 +498,11 @@ export function BarWorkspace({
               href={
                 section === "menu"
                   ? `/bar/menu?tab=${tab}`
-                  : `/bar/inventory?tab=${tab}`
+                  : tab === "warehouse"
+                    ? "/bar/warehouse"
+                    : tab === "ingredients"
+                      ? "/bar/ingredients"
+                      : `/bar/inventory?tab=${tab}`
               }
               aria-current={view === tab ? "page" : undefined}
               className={`shrink-0 rounded-lg px-4 py-2 text-sm ${view === tab ? "bg-brand-700 text-white" : "bg-white text-slate-600"}`}
@@ -450,8 +518,25 @@ export function BarWorkspace({
           jornada.
         </p>
       )}
+      {view === "warehouse" && (
+        <WarehouseInventory
+          s={s}
+          canManage={can("catalog")}
+          busy={busy}
+          command={command}
+        />
+      )}
+      {view === "ingredients" && (
+        <IngredientInventory
+          s={s}
+          canManage={can("catalog")}
+          busy={busy}
+          command={command}
+        />
+      )}
       {view === "dashboard" && (
         <>
+          {s.forecast && <SalesProjection forecast={s.forecast} />}
           <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <Metric
               label="Ventas de la jornada"
@@ -870,7 +955,7 @@ export function BarWorkspace({
           {can("cash") && (
             <section className="panel p-6 max-w-2xl">
               <h2 className="font-semibold mb-4">
-                {s.day ? "Cerrar jornada" : "Abrir jornada"}
+                {s.day ? "Cerrar dinero y bebidas" : "Abrir jornada"}
               </h2>
               {s.day && (
                 <p className="text-sm text-slate-500 mb-5">
@@ -884,6 +969,7 @@ export function BarWorkspace({
                   await command(s.day ? "close" : "open", {
                     [s.day ? "counted" : "opening"]: value(d, "cash"),
                     notes: value(d, "notes"),
+                    inventoryCounts: inventoryCounts(d),
                     ...(!s.day
                       ? { overrideReason: value(d, "overrideReason") }
                       : {}),
@@ -893,7 +979,7 @@ export function BarWorkspace({
                 <Field
                   label={
                     s.day
-                      ? "Efectivo contado físicamente (C$)"
+                      ? "1. Dinero contado en caja (C$)"
                       : "Fondo inicial (C$)"
                   }
                 >
@@ -910,6 +996,7 @@ export function BarWorkspace({
                     <Input name="overrideReason" />
                   </Field>
                 )}
+                {s.day && <BeverageCountFields s={s} />}
                 <Field label="Notas">
                   <textarea name="notes" />
                 </Field>
@@ -931,6 +1018,7 @@ export function BarWorkspace({
                   await command("open", {
                     opening: value(d, "opening"),
                     previousCounted: value(d, "counted"),
+                    inventoryCounts: inventoryCounts(d),
                     overrideReason: value(d, "reason"),
                   });
                 }}
@@ -953,6 +1041,7 @@ export function BarWorkspace({
                     required
                   />
                 </Field>
+                <BeverageCountFields s={s} />
                 <Field label="Motivo de autorización">
                   <Input name="reason" required />
                 </Field>
@@ -994,6 +1083,24 @@ export function BarWorkspace({
                       />
                     ))}
                   </div>
+                  {Array.isArray(close.beverages) && (
+                    <DataRows
+                      headers={["Bebida", "Esperado", "Contado", "Diferencia"]}
+                      rows={(
+                        close.beverages as {
+                          name: string;
+                          expected: string;
+                          counted: string;
+                          difference: string;
+                        }[]
+                      ).map((b) => [
+                        b.name,
+                        Number(b.expected),
+                        Number(b.counted),
+                        Number(b.difference),
+                      ])}
+                    />
+                  )}
                   <p className="text-xs mt-4">
                     Órdenes: {String(close.orderCount)} · Anuladas:{" "}
                     {String(close.cancelled)} · Abrió: {d.openedBy} · Cerró:{" "}
@@ -1082,21 +1189,43 @@ export function BarWorkspace({
                     formatMoney(p.cost),
                   ]
                 : [
-                    formatMoney(p.product.price),
+                    <div key="price">
+                      {formatMoney(p.product.price)}
+                      {s.fullInventory && p.components.length > 0 && (
+                        <small className="block text-slate-500">
+                          Costo: {formatMoney(p.cost)}
+                        </small>
+                      )}
+                    </div>,
                     !p.product.active
                       ? "Inactivo"
                       : p.available
                         ? "Disponible"
                         : "No disponible",
                     can("catalog") ? (
-                      <Button
-                        key="edit"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEditingProduct(p)}
-                      >
-                        Editar
-                      </Button>
+                      <div key="actions" className="flex flex-wrap gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={busy}
+                          onClick={() =>
+                            run("availability", {
+                              productId: p.id,
+                              available: !p.available,
+                            })
+                          }
+                        >
+                          {p.available ? "Marcar agotado" : "Volver a ofrecer"}
+                        </Button>
+                        <Button
+                          key="edit"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingProduct(p)}
+                        >
+                          Editar
+                        </Button>
+                      </div>
                     ) : null,
                   ]),
             ])}
@@ -1274,6 +1403,7 @@ export function BarWorkspace({
             "Fecha",
             "Producto",
             "Tipo",
+            "Ubicación",
             "Cantidad",
             "Saldo",
             "Motivo",
@@ -1282,7 +1412,8 @@ export function BarWorkspace({
           rows={s.movements.map((m) => [
             fmt(m.createdAt),
             m.product.product.name,
-            m.type,
+            stockLabel(m.type),
+            m.location === "WAREHOUSE" ? "Almacén" : "Para vender",
             m.quantity,
             m.balance,
             m.reason,
@@ -1445,24 +1576,39 @@ export function BarWorkspace({
                     {writable &&
                       active(selectedOrder) &&
                       !selectedOrder.payments.length && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => {
-                            const reason = prompt(
-                              "Motivo para quitar el producto",
-                            );
-                            if (reason)
-                              run("remove-item", {
-                                orderId: selectedOrder.id,
-                                itemId: i.id,
-                                reason,
-                              });
-                          }}
-                        >
-                          Quitar
-                        </Button>
+                        <div className="flex flex-wrap gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={busy}
+                            onClick={() => {
+                              const p = s.products.find(
+                                (p) => p.id === i.productId,
+                              );
+                              if (p) setCustomize({ product: p, item: i });
+                            }}
+                          >
+                            Personalizar
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={busy}
+                            onClick={() => {
+                              const reason = prompt(
+                                "Motivo para quitar el producto",
+                              );
+                              if (reason)
+                                run("remove-item", {
+                                  orderId: selectedOrder.id,
+                                  itemId: i.id,
+                                  reason,
+                                });
+                            }}
+                          >
+                            Quitar
+                          </Button>
+                        </div>
                       )}
                   </div>
                 </div>
@@ -1499,72 +1645,11 @@ export function BarWorkspace({
             {active(selectedOrder) &&
               !selectedOrder.payments.length &&
               writable && (
-                <section className="mt-5 panel p-5">
-                  <h3 className="font-semibold mb-4">Agregar consumo</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-5">
-                    {s.products
-                      .filter((p) => p.available && p.product.active)
-                      .slice(0, 18)
-                      .map((p) => (
-                        <Button
-                          variant="outline"
-                          key={p.id}
-                          disabled={busy}
-                          className="h-auto min-h-20 flex-col items-start text-left whitespace-normal p-3"
-                          onClick={() =>
-                            run("add-item", {
-                              orderId: selectedOrder.id,
-                              productId: p.id,
-                              quantity: 1,
-                            })
-                          }
-                        >
-                          <span>{p.product.name}</span>
-                          <span className="text-brand-700">
-                            {formatMoney(p.product.price)}
-                          </span>
-                        </Button>
-                      ))}
-                  </div>
-                  <Form
-                    busy={busy}
-                    onSubmit={async (d) => {
-                      await command("add-item", {
-                        orderId: selectedOrder.id,
-                        productId: value(d, "productId"),
-                        quantity: value(d, "quantity"),
-                        notes: value(d, "notes"),
-                      });
-                    }}
-                  >
-                    <Field label="Producto">
-                      <select name="productId" required>
-                        {s.products
-                          .filter((p) => p.available && p.product.active)
-                          .map((p) => (
-                            <option value={p.id} key={p.id}>
-                              {p.product.name} · {formatMoney(p.product.price)}
-                            </option>
-                          ))}
-                      </select>
-                    </Field>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Cantidad">
-                        <Input
-                          name="quantity"
-                          type="number"
-                          min="1"
-                          max="1000"
-                          defaultValue="1"
-                          required
-                        />
-                      </Field>
-                      <Field label="Notas de preparación">
-                        <Input name="notes" placeholder="Sin cebolla…" />
-                      </Field>
-                    </div>
-                  </Form>
-                </section>
+                <Button variant="outline" className="mt-4 w-full" asChild>
+                  <Link href={`/bar/pos?order=${selectedOrder.id}`}>
+                    Agregar productos a esta orden
+                  </Link>
+                </Button>
               )}
             {active(selectedOrder) &&
               !selectedOrder.payments.length &&
@@ -1955,6 +2040,40 @@ export function BarWorkspace({
           </section>
         </div>
       )}
+      {customize && selectedOrder && (
+        <ItemCustomizer
+          key={customize.item?.id || customize.product.id}
+          product={customize.product}
+          initial={customize.item}
+          busy={busy}
+          onClose={() => setCustomize(null)}
+          onSave={async (data) => {
+            try {
+              const result = await command(
+                customize.item ? "update-item" : "add-item",
+                {
+                  orderId: selectedOrder.id,
+                  productId: customize.product.id,
+                  ...(customize.item ? { itemId: customize.item.id } : {}),
+                  ...data,
+                },
+              );
+              setCustomize(null);
+              toast.success("Orden actualizada.");
+              if (result.correctionDispatchId)
+                toast.success("Cambio enviado a cocina.", {
+                  action: {
+                    label: "Imprimir cambio",
+                    onClick: () =>
+                      router.push(
+                        "/bar/print/kitchen/" + result.correctionDispatchId,
+                      ),
+                  },
+                });
+            } catch {}
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -1971,15 +2090,8 @@ function ProductForm({
   busy: boolean;
   save: (body: Record<string, unknown>) => Promise<void>;
 }) {
-  const [customizations, setCustomizations] = useState<
-    { key: string; label: string; kind: string; price: string }[]
-  >(
-    (initial?.customizations as {
-      key: string;
-      label: string;
-      kind: string;
-      price: string;
-    }[]) || [],
+  const [customizations, setCustomizations] = useState<Modifier[]>(
+    (initial?.customizations as Modifier[]) || [],
   );
   const [parts, setParts] = useState<
     { ingredientId: string; quantity: string }[]
@@ -1989,325 +2101,441 @@ function ProductForm({
       quantity: c.quantity,
     })) || [],
   );
+  const categories = s.categories.filter((c) => c.kind === kind);
+  const numberField = (
+    label: string,
+    name: string,
+    defaultValue: string,
+    min = "0",
+  ) => (
+    <Field key={name} label={label}>
+      <Input
+        name={name}
+        type="number"
+        inputMode="decimal"
+        min={min}
+        step="0.01"
+        defaultValue={defaultValue}
+      />
+    </Field>
+  );
   return (
-    <div className="mt-5">
+    <div className="mt-4 max-w-3xl">
       <Form
         busy={busy}
         onSubmit={async (d) => {
           await save({
             ...(initial ? { id: initial.id } : {}),
-            active: value(d, "active") !== "INACTIVE",
-            available: value(d, "available") !== "UNAVAILABLE",
-            name: value(d, "name"),
-            sku: value(d, "sku"),
-            description: value(d, "description"),
             kind,
+            name: value(d, "name"),
             categoryId: value(d, "categoryId"),
             price: value(d, "price"),
-            cost: value(d, "cost"),
+            sku:
+              value(d, "sku") ||
+              initial?.product.sku ||
+              "ART-" + crypto.randomUUID().slice(0, 8),
+            cost: value(d, "cost") || "0",
+            description: value(d, "description"),
             presentation: value(d, "presentation"),
-            unit: value(d, "unit"),
+            unit: value(d, "unit") || initial?.product.unit || "unidad",
+            active: value(d, "active") !== "INACTIVE",
+            available: value(d, "available") !== "UNAVAILABLE",
             initialStock: value(d, "initialStock") || "0",
             minimum: value(d, "minimum") || "0",
             trackStock: kind === "DRINK",
-            supplierId: value(d, "supplierId") || null,
+            supplierId: initial?.supplierId || null,
             taxId: value(d, "taxId") || null,
-            image: value(d, "image"),
+            image: initial?.image || "",
             notes: value(d, "notes"),
             components: parts,
             customizations,
           });
-          if (!initial) setParts([]);
+          if (!initial) {
+            setParts([]);
+            setCustomizations([]);
+          }
         }}
       >
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {[
-            ["Nombre", "name"],
-            ["Código", "sku"],
-          ].map(([l, n]) => (
-            <Field key={n} label={l}>
-              <Input
-                name={n}
-                required
-                defaultValue={initial?.product[n as "name" | "sku"] || ""}
-              />
-            </Field>
-          ))}
+        <div className="grid sm:grid-cols-3 gap-3">
+          <Field label="Nombre">
+            <Input
+              name="name"
+              required
+              maxLength={200}
+              defaultValue={initial?.product.name || ""}
+              placeholder={
+                kind === "DRINK" ? "Ej. Limonada" : "Ej. Hamburguesa"
+              }
+            />
+          </Field>
           <Field label="Categoría">
             <select
               name="categoryId"
-              defaultValue={initial?.categoryId || ""}
               required
+              defaultValue={
+                initial?.categoryId ||
+                (categories.length === 1 ? categories[0].id : "")
+              }
             >
-              <option value="">Seleccionar</option>
-              {s.categories
-                .filter((c) => c.kind === kind)
-                .map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-            </select>
-          </Field>
-          <Field label="Precio de venta C$">
-            <Input
-              name="price"
-              defaultValue={initial?.product.price || ""}
-              type="number"
-              min="0.01"
-              step="0.01"
-              required
-            />
-          </Field>
-          <Field label="Costo estimado C$">
-            <Input
-              name="cost"
-              defaultValue={initial?.cost || ""}
-              type="number"
-              min="0"
-              step="0.01"
-              required
-            />
-          </Field>
-          <Field label="Impuesto">
-            <select name="taxId" defaultValue={initial?.product.taxId || ""}>
-              <option value="">Sin impuesto</option>
-              {s.taxes.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} · {t.rate}%
+              <option value="">Elegir categoría</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
                 </option>
               ))}
             </select>
           </Field>
-          <Field label="Presentación">
+          <Field label="Precio de venta (C$)">
             <Input
-              name="presentation"
-              defaultValue={initial?.presentation || ""}
-              placeholder="Botella 355 ml"
-            />
-          </Field>
-          <Field label="Unidad de inventario">
-            <Input
-              name="unit"
-              defaultValue={initial?.product.unit || "unidad"}
+              name="price"
+              type="number"
+              inputMode="decimal"
+              min="0.01"
+              step="0.01"
               required
+              defaultValue={initial?.product.price || ""}
+              placeholder="0.00"
             />
           </Field>
-          {kind === "DRINK" && (
-            <>
-              <Field label="Existencia inicial">
-                <Input
-                  name="initialStock"
-                  disabled={Boolean(initial)}
-                  type="number"
-                  min="0"
-                  step="0.0001"
-                  defaultValue="0"
-                />
-              </Field>
-              <Field label="Existencia mínima">
-                <Input
-                  name="minimum"
-                  type="number"
-                  min="0"
-                  step="0.0001"
-                  defaultValue={initial?.minimum || "0"}
-                />
-              </Field>
-            </>
-          )}
-          <Field label="Estado">
-            <select
-              name="active"
-              defaultValue={
-                initial?.product.active === false ? "INACTIVE" : "ACTIVE"
-              }
-            >
-              <option value="ACTIVE">Activo</option>
-              <option value="INACTIVE">Inactivo</option>
-            </select>
-          </Field>
-          <Field label="Disponibilidad">
-            <select
-              name="available"
-              defaultValue={
-                initial?.available === false ? "UNAVAILABLE" : "AVAILABLE"
-              }
-            >
-              <option value="AVAILABLE">Disponible</option>
-              <option value="UNAVAILABLE">No disponible</option>
-            </select>
-          </Field>
-          <Field label="Descripción">
-            <Input
-              name="description"
-              defaultValue={initial?.product.description || ""}
-            />
-          </Field>
-          <Field label="Imagen HTTPS (opcional)">
-            <Input
-              name="image"
-              defaultValue={initial?.image || ""}
-              type="url"
-            />
-          </Field>
-          <Field label="Notas">
-            <Input name="notes" defaultValue={initial?.notes || ""} />
-          </Field>
+          {kind === "DRINK" &&
+            !initial &&
+            numberField("Cantidad disponible", "initialStock", "0")}
         </div>
-        <div className="space-y-3">
-          <p className="font-semibold text-sm">
-            Opciones al ordenar · retirar ingredientes o agregar extras
+        {!categories.length && (
+          <p className="text-xs text-amber-800">
+            Primero agregá una categoría en la pestaña Categorías.
           </p>
-          {customizations.map((c, index) => (
-            <div
-              key={c.key}
-              className="grid sm:grid-cols-3 gap-3 border p-3 rounded-xl"
-            >
-              <Input
-                aria-label="Ingrediente"
-                placeholder="Cebolla, salsa…"
-                required
-                value={c.label}
-                onChange={(e) =>
-                  setCustomizations((rows) =>
-                    rows.map((r, i) =>
-                      i === index ? { ...r, label: e.target.value } : r,
-                    ),
-                  )
-                }
-              />
-              <select
-                value={c.kind}
-                onChange={(e) =>
-                  setCustomizations((rows) =>
-                    rows.map((r, i) =>
-                      i === index
-                        ? {
-                            ...r,
-                            kind: e.target.value,
-                            price: e.target.value === "REMOVE" ? "0" : r.price,
-                          }
-                        : r,
-                    ),
-                  )
-                }
-              >
-                <option value="REMOVE">Retirar / sin</option>
-                <option value="EXTRA">Extra</option>
+        )}
+        <details className="border-t border-slate-100 pt-3">
+          <summary className="cursor-pointer text-sm font-medium">
+            Más detalles{" "}
+            <span className="font-normal text-slate-500">· opcional</span>
+          </summary>
+          <div className="grid sm:grid-cols-2 gap-3 mt-3">
+            {numberField("Costo por unidad (C$)", "cost", initial?.cost || "0")}
+            <Field label="Impuesto">
+              <select name="taxId" defaultValue={initial?.product.taxId || ""}>
+                <option value="">Sin impuesto</option>
+                {s.taxes.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} · {t.rate}%
+                  </option>
+                ))}
               </select>
-              <Input
-                aria-label="Precio del extra"
-                disabled={c.kind === "REMOVE"}
-                value={c.price}
-                type="number"
-                min="0"
-                step="0.01"
-                onChange={(e) =>
-                  setCustomizations((rows) =>
-                    rows.map((r, i) =>
-                      i === index ? { ...r, price: e.target.value } : r,
-                    ),
-                  )
-                }
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() =>
-                  setCustomizations((rows) =>
-                    rows.filter((_, i) => i !== index),
-                  )
-                }
-              >
-                Quitar opción
-              </Button>
-            </div>
-          ))}
-          <Button
-            variant="outline"
-            type="button"
-            onClick={() =>
-              setCustomizations((rows) => [
-                ...rows,
-                {
-                  key: crypto.randomUUID(),
-                  label: "",
-                  kind: "REMOVE",
-                  price: "0",
-                },
-              ])
-            }
-          >
-            Agregar opción
-          </Button>
-        </div>
-        {kind !== "DRINK" && (
-          <div className="space-y-3">
-            <p className="text-sm font-medium">
-              Componentes de inventario{" "}
-              {kind === "COMBO" ? "(obligatorios)" : "(opcional)"}
+            </Field>
+            {[
+              [
+                "Descripción corta",
+                "description",
+                initial?.product.description || "",
+              ],
+              ["Presentación", "presentation", initial?.presentation || ""],
+              ["Código (se genera solo)", "sku", initial?.product.sku || ""],
+              ["Notas para el personal", "notes", initial?.notes || ""],
+            ].map(([label, name, v]) => (
+              <Field key={name} label={label}>
+                <Input name={name} defaultValue={v} />
+              </Field>
+            ))}
+            {initial && (
+              <>
+                <Field label="Mostrar en el menú">
+                  <select
+                    name="active"
+                    defaultValue={
+                      initial.product.active ? "ACTIVE" : "INACTIVE"
+                    }
+                  >
+                    <option value="ACTIVE">Sí</option>
+                    <option value="INACTIVE">No · ocultar</option>
+                  </select>
+                </Field>
+                <Field label="¿Se puede pedir hoy?">
+                  <select
+                    name="available"
+                    defaultValue={
+                      initial.available ? "AVAILABLE" : "UNAVAILABLE"
+                    }
+                  >
+                    <option value="AVAILABLE">Sí, disponible</option>
+                    <option value="UNAVAILABLE">No, agotado por hoy</option>
+                  </select>
+                </Field>
+              </>
+            )}
+            {kind === "DRINK" && (
+              <>
+                {numberField(
+                  "Avisar cuando queden",
+                  "minimum",
+                  initial?.minimum || "0",
+                )}
+                <Field label="Se cuenta por">
+                  <Input
+                    name="unit"
+                    defaultValue={initial?.product.unit || "unidad"}
+                    placeholder="Botella, lata, unidad…"
+                  />
+                </Field>
+              </>
+            )}
+          </div>
+          {kind === "DRINK" && initial && (
+            <p className="text-xs text-slate-500 mt-2">
+              Para sumar o descontar unidades, usá Inventario.
             </p>
-            {parts.map((p, index) => (
-              <div key={index} className="flex gap-3">
-                <select
-                  required
-                  value={p.ingredientId}
-                  onChange={(e) =>
-                    setParts((rows) =>
-                      rows.map((r, i) =>
-                        i === index
-                          ? { ...r, ingredientId: e.target.value }
-                          : r,
-                      ),
-                    )
-                  }
-                >
-                  <option value="">Seleccionar ingrediente</option>
-                  {s.products
-                    .filter((p) => p.trackStock)
-                    .map((p) => (
-                      <option value={p.id} key={p.id}>
-                        {p.product.name} ({p.product.unit})
-                      </option>
-                    ))}
-                </select>
-                <Input
-                  aria-label="Cantidad por producto"
-                  type="number"
-                  min="0.0001"
-                  step="0.0001"
-                  value={p.quantity}
-                  onChange={(e) =>
-                    setParts((rows) =>
-                      rows.map((r, i) =>
-                        i === index ? { ...r, quantity: e.target.value } : r,
-                      ),
-                    )
-                  }
-                />
+          )}
+        </details>
+        <details className="border-t border-slate-100 pt-3">
+          <summary className="cursor-pointer text-sm font-medium">
+            Ingredientes, extras y preparación{" "}
+            <span className="font-normal text-slate-500">
+              {customizations.length
+                ? `· ${customizations.length} opciones`
+                : "· opcional"}
+            </span>
+          </summary>
+          <div className="space-y-3 mt-3">
+            {customizations.map((c, i) => (
+              <div
+                key={c.key}
+                className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-end"
+              >
+                <Field label="Ingrediente u opción">
+                  <Input
+                    required
+                    value={c.label}
+                    placeholder="Cebolla, queso…"
+                    onChange={(e) =>
+                      setCustomizations((rows) =>
+                        rows.map((r, j) =>
+                          j === i ? { ...r, label: e.target.value } : r,
+                        ),
+                      )
+                    }
+                  />
+                </Field>
+                <Field label="El cliente puede">
+                  <select
+                    value={c.kind}
+                    onChange={(e) =>
+                      setCustomizations((rows) =>
+                        rows.map((r, j) =>
+                          j === i
+                            ? {
+                                ...r,
+                                kind: e.target.value,
+                                ...(e.target.value === "OPTION"
+                                  ? {
+                                      group: r.group || "Preparación",
+                                      required: true,
+                                    }
+                                  : {}),
+                                price:
+                                  e.target.value === "REMOVE" ? "0" : r.price,
+                              }
+                            : r,
+                        ),
+                      )
+                    }
+                  >
+                    <option value="REMOVE">Pedir sin esto</option>
+                    <option value="EXTRA">Agregar extra</option>
+                    <option value="OPTION">Elegir preparación</option>
+                  </select>
+                </Field>
+                <Field label="Precio del extra (C$)">
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="0.01"
+                    required
+                    disabled={c.kind === "REMOVE"}
+                    value={c.price}
+                    onChange={(e) =>
+                      setCustomizations((rows) =>
+                        rows.map((r, j) =>
+                          j === i ? { ...r, price: e.target.value } : r,
+                        ),
+                      )
+                    }
+                  />
+                </Field>
+                {c.kind === "OPTION" && (
+                  <>
+                    <Field label="Grupo (ej. Salsa)">
+                      <Input
+                        required
+                        value={c.group || "Preparación"}
+                        onChange={(e) =>
+                          setCustomizations((rows) =>
+                            rows.map((r, j) =>
+                              j === i ? { ...r, group: e.target.value } : r,
+                            ),
+                          )
+                        }
+                      />
+                    </Field>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="w-5 h-5 accent-brand-700"
+                        checked={Boolean(c.required)}
+                        onChange={(e) =>
+                          setCustomizations((rows) =>
+                            rows.map((r, j) =>
+                              j === i
+                                ? { ...r, required: e.target.checked }
+                                : r,
+                            ),
+                          )
+                        }
+                      />
+                      Hay que elegir una
+                    </label>
+                  </>
+                )}
                 <Button
-                  variant="ghost"
                   type="button"
+                  variant="ghost"
                   onClick={() =>
-                    setParts((r) => r.filter((_, i) => i !== index))
+                    setCustomizations((rows) => rows.filter((_, j) => j !== i))
                   }
                 >
-                  Quitar
+                  Quitar opción
                 </Button>
               </div>
             ))}
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={() =>
-                setParts((r) => [...r, { ingredientId: "", quantity: "1" }])
+                setCustomizations((rows) => [
+                  ...rows,
+                  {
+                    key: crypto.randomUUID(),
+                    label: "",
+                    kind: "REMOVE",
+                    price: "0",
+                  },
+                ])
               }
             >
-              <Plus size={16} />
-              Agregar componente
+              + Agregar opción
             </Button>
           </div>
+        </details>
+        {kind !== "DRINK" && (
+          <details
+            open={kind === "COMBO" ? true : undefined}
+            className="border-t border-slate-100 pt-3"
+          >
+            <summary className="cursor-pointer text-sm font-medium">
+              {kind === "COMBO"
+                ? "Qué incluye la promoción"
+                : "Descontar ingredientes del inventario"}
+              <span className="font-normal text-slate-500">
+                {kind === "COMBO" ? " · obligatorio" : " · opcional"}
+              </span>
+            </summary>
+            {s.fullInventory && parts.length > 0 && (
+              <p className="text-sm text-brand-800 mt-2">
+                Costo por porción:{" "}
+                <strong>
+                  {formatMoney(
+                    parts.reduce(
+                      (n, p) =>
+                        n.plus(
+                          decimal(
+                            s.products.find((i) => i.id === p.ingredientId)
+                              ?.cost || "0",
+                          ).times(p.quantity || "0"),
+                        ),
+                      decimal(0),
+                    ),
+                  )}
+                </strong>
+              </p>
+            )}
+            <p className="text-xs text-slate-500 mt-2">
+              Elegí qué productos y cuántas unidades se usan cada vez que vendés
+              uno.
+            </p>
+            <div className="space-y-3 mt-3">
+              {parts.map((p, i) => (
+                <div
+                  key={i}
+                  className="grid grid-cols-[minmax(0,1fr)_80px_auto] gap-2 items-end"
+                >
+                  <Field label="Producto">
+                    <select
+                      required
+                      value={p.ingredientId}
+                      onChange={(e) =>
+                        setParts((rows) =>
+                          rows.map((r, j) =>
+                            j === i
+                              ? { ...r, ingredientId: e.target.value }
+                              : r,
+                          ),
+                        )
+                      }
+                    >
+                      <option value="">Elegir producto</option>
+                      {s.products
+                        .filter((p) => p.trackStock)
+                        .map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.product.name} ({p.product.unit})
+                          </option>
+                        ))}
+                    </select>
+                  </Field>
+                  <Field label="Cantidad">
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      min="0.0001"
+                      step="0.0001"
+                      required
+                      value={p.quantity}
+                      onChange={(e) =>
+                        setParts((rows) =>
+                          rows.map((r, j) =>
+                            j === i ? { ...r, quantity: e.target.value } : r,
+                          ),
+                        )
+                      }
+                    />
+                  </Field>
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    onClick={() =>
+                      setParts((rows) => rows.filter((_, j) => j !== i))
+                    }
+                  >
+                    Quitar
+                  </Button>
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                onClick={() =>
+                  setParts((rows) => [
+                    ...rows,
+                    { ingredientId: "", quantity: "1" },
+                  ])
+                }
+              >
+                + Agregar producto
+              </Button>
+            </div>
+          </details>
         )}
       </Form>
     </div>

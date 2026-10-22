@@ -34,7 +34,12 @@ type ThermalData = {
 export function ThermalDocument({ data: d }: { data: ThermalData }) {
   const paper = useRef<HTMLElement>(null);
   const [height, setHeight] = useState(297);
+  const [printMode, setPrintMode] = usePreference(
+    "antoja2-print-mode-" + d.kind,
+    "none",
+  );
   const print = () => {
+    if (printMode !== "system") return;
     flushSync(() =>
       setHeight(
         Math.max(
@@ -51,7 +56,6 @@ export function ThermalDocument({ data: d }: { data: ThermalData }) {
   );
   const width = paperPreference === "58" ? "58" : "80";
   const setWidth = setPaperPreference;
-  const [printer, setPrinter] = usePreference("antoja2-printer-" + d.kind, "");
   const methods: Record<string, string> = {
     CASH: "Efectivo",
     CARD: "Tarjeta",
@@ -68,43 +72,55 @@ export function ThermalDocument({ data: d }: { data: ThermalData }) {
             ? "Comanda · Impresora de cocina"
             : "Factura restaurante · Impresora de caja"}
         </h1>
-        <p className="text-sm text-slate-500">
-          Elegí la impresora de {kitchen ? "cocina" : "caja"} en el diálogo del
-          navegador. Escala 100%, márgenes ninguno, encabezados y pies
-          desactivados.
+        <p className="text-sm text-slate-500" role="status">
+          {printMode === "system"
+            ? "Al imprimir, elegí la impresora instalada en este dispositivo."
+            : "Sin impresora · Solo vista previa. No se ha enviado nada a una impresora."}
         </p>
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-2 gap-3">
+          <label>
+            Impresora de {kitchen ? "cocina" : "caja"}
+            <select
+              aria-label={kitchen ? "Impresora de cocina" : "Impresora de caja"}
+              value={printMode}
+              onChange={(e) => setPrintMode(e.target.value)}
+            >
+              <option value="none">Sin impresora · solo pantalla</option>
+              <option value="system">Elegir impresora al imprimir</option>
+            </select>
+          </label>
           <label>
             Ancho del rollo
-            <select
-              value={width}
-              onChange={(e) => {
-                setWidth(e.target.value);
-              }}
-            >
+            <select value={width} onChange={(e) => setWidth(e.target.value)}>
               <option value="80">80 mm</option>
               <option value="58">58 mm</option>
             </select>
           </label>
-          <label>
-            Nombre de referencia de la impresora
-            <input
-              className="border rounded-xl p-3 w-full"
-              value={printer}
-              placeholder={kitchen ? "Cocina" : "Caja"}
-              onChange={(e) => {
-                setPrinter(e.target.value);
-              }}
-            />
-          </label>
         </div>
-        <p className="text-xs text-slate-500">
-          La referencia se guarda en este dispositivo; el navegador controla la
-          selección real. Enviar una comanda no confirma que haya salido
-          físicamente por la impresora.
-        </p>
+        <details className="text-xs text-slate-500">
+          <summary className="cursor-pointer">
+            Cómo conectar la impresora
+          </summary>
+          <ol className="list-decimal pl-4 mt-2 space-y-1">
+            <li>
+              Instalá o vinculá la impresora en este celular, tablet o
+              computadora, y probala desde el dispositivo.
+            </li>
+            <li>Seleccioná «Elegir impresora al imprimir» arriba.</li>
+            <li>
+              Pulsá Imprimir y elegí la impresora de{" "}
+              {kitchen ? "cocina" : "caja"} en la ventana que se abre.
+            </li>
+          </ol>
+          <p className="mt-2">
+            Usá escala 100%, sin márgenes ni encabezados. Esta preferencia se
+            guarda por separado para caja y cocina, solo en este dispositivo. El
+            navegador no permite listar ni fijar impresoras desde esta página.
+            Abrir o cancelar la ventana no confirma que se imprimió.
+          </p>
+        </details>
         <div className="flex gap-3">
-          <Button onClick={print}>
+          <Button disabled={printMode !== "system"} onClick={print}>
             Imprimir {kitchen ? "comanda" : "factura"}
           </Button>
           <Button variant="outline" asChild>
@@ -216,8 +232,8 @@ export function ThermalDocument({ data: d }: { data: ThermalData }) {
         )}
         {kitchen && (
           <p className="text-center text-xs mt-4">
-            Solo platos nuevos de este envío · Reimprimir conserva el mismo
-            número de comanda.
+            Incluye platos o correcciones de este envío · Reimprimir conserva el
+            mismo número de comanda.
           </p>
         )}
       </article>

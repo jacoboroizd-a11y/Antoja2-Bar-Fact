@@ -29,6 +29,8 @@ export default async function BarPage({
         "food",
         "combos",
         "categories",
+        "warehouse",
+        "ingredients",
         "inventory",
         "movements",
         "suppliers",
@@ -68,7 +70,7 @@ export default async function BarPage({
   const filters = await searchParams;
   const section = view[0] || "dashboard";
   const menuTabs = ["drinks", "food", "combos", "categories"];
-  const inventoryTabs = ["inventory", "movements"];
+  const inventoryTabs = ["inventory", "movements", "ingredients", "warehouse"];
   const resolvedView =
     section === "menu"
       ? menuTabs.includes(filters.tab || "")
@@ -83,7 +85,7 @@ export default async function BarPage({
       : inventoryTabs.includes(section)
         ? "inventory"
         : undefined;
-  const snapshot = await barSnapshot(ctx);
+  const snapshot = await barSnapshot(ctx, section === "dashboard");
   if (view[0] === "pos")
     return <PosTerminal ctx={ctx} s={JSON.parse(JSON.stringify(snapshot))} />;
   return (

@@ -1,3 +1,5 @@
+import { salesForecast } from "./sales-forecast";
+import { barClock } from "@/lib/bar-time";
 import { serviceLabel } from "@/lib/bar-channels";
 import { transaction } from "./db";
 import { requireBar } from "./bar-permissions";
@@ -17,6 +19,10 @@ export async function barReport(
   } catch {
     throw new AppError("Seleccioná un día o mes válido.");
   }
+  const forecast =
+    kind === "day" || p.period === barClock().date.slice(0, 7)
+      ? await salesForecast(ctx, kind === "day" ? p.period : barClock().date)
+      : null;
   return transaction(async (tx) => {
     const scope = {
       companyId: ctx.companyId,
@@ -187,8 +193,41 @@ export async function barReport(
       opening: d.opening.toFixed(2),
       closeData: d.closeData,
     }));
+    const ingredientCosts = paid.flatMap((o) =>
+      o.items.flatMap((item) => {
+        const parts = item.inventoryParts as {
+          quantity: string;
+          unitCost?: string;
+        }[];
+        if (!parts.length || parts.some((p) => p.unitCost === undefined))
+          return [];
+        const cost = amount(
+          parts
+            .reduce(
+              (n, p) => n.plus(decimal(p.quantity).times(p.unitCost!)),
+              decimal(0),
+            )
+            .times(item.quantity),
+        );
+        const net = decimal(item.unitPrice.toString())
+          .times(item.quantity)
+          .times(decimal(1).minus(decimal(o.discountRate.toString()).div(100)));
+        return [
+          {
+            order: o.number,
+            name: item.name,
+            quantity: item.quantity,
+            cost,
+            net: amount(net),
+            margin: amount(net.minus(cost)),
+          },
+        ];
+      }),
+    );
     const cancelled = orders.filter((o) => o.status === "CANCELLED");
     return {
+      ingredientCosts,
+      forecast,
       kind: p.kind,
       period: p.period,
       label: p.label,
@@ -280,6 +319,7 @@ export async function barReport(
         date: m.createdAt.toISOString(),
         product: m.product.product.name,
         type: m.type,
+        location: m.location,
         quantity: m.quantity.toString(),
         balance: m.balance.toString(),
         reason: m.reason,

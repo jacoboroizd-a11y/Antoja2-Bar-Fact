@@ -32,8 +32,9 @@
   body {
     min-height: 100vh;
     background:
-      radial-gradient(ellipse at 0% 0%, #f3dce4 0, transparent 45%),
-      radial-gradient(ellipse at 100% 30%, #f5e8e8 0, transparent 40%),
+      radial-gradient(ellipse at 5% 0%, #e7bdce 0, transparent 48%),
+      radial-gradient(ellipse at 100% 35%, #f2dfd4 0, transparent 42%),
+      radial-gradient(ellipse at 45% 100%, #e9e0ee 0, transparent 50%),
       var(--background);
     background-attachment: fixed;
     color: var(--foreground);
@@ -108,20 +109,56 @@
 }
 @layer components {
   .panel {
-    border: 1px solid rgba(255, 255, 255, 0.9);
-    border-radius: 22px;
-    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    background: linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.88),
+      rgba(255, 255, 255, 0.68)
+    );
     box-shadow:
-      0 6px 28px #47182a0a,
-      inset 0 1px 0 #ffffff;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+      0 8px 30px #47182a0b,
+      inset 0 1px 0 #fff,
+      inset 0 -1px 0 #ffffff70;
   }
   .glass-nav {
-    background: rgba(255, 255, 255, 0.76);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border-color: rgba(233, 215, 222, 0.65);
+    background: linear-gradient(140deg, #ffffffd9, #fff8fbba);
+    backdrop-filter: blur(20px) saturate(135%);
+    -webkit-backdrop-filter: blur(20px) saturate(135%);
+    border-color: #ffffffd9;
+    box-shadow:
+      inset 0 1px 0 #fff,
+      2px 0 18px #47182a05;
+  }
+  .glass-action {
+    background-image: linear-gradient(160deg, #ffffff22, transparent 55%);
+    border: 1px solid #ffffff30;
+    box-shadow:
+      inset 0 1px 0 #ffffff40,
+      0 3px 8px #4313221a;
+  }
+  @media (max-width: 640px) {
+    .glass-nav {
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .panel {
+      border-radius: 16px;
+      background: #ffffffeb;
+    }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .panel,
+    .glass-nav {
+      background: #fff;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+  @supports not (backdrop-filter: blur(1px)) {
+    .glass-nav {
+      background: #fffafc;
+    }
   }
   .table th {
     font-size: 10px;
@@ -129,13 +166,13 @@
     letter-spacing: 0.08em;
     color: #8a6875;
     font-weight: 600;
-    padding: 16px 18px;
+    padding: 12px 16px;
     text-align: left;
     background: #fcf3f680;
     white-space: nowrap;
   }
   .table td {
-    padding: 17px 18px;
+    padding: 13px 16px;
     border-top: 1px solid #f0e5e9;
     font-size: 13px;
   }
@@ -265,18 +302,47 @@
 }
 
 /* POS: portrait phones switch panels; tablets and landscape use two columns. */
-.pos-columns { display: grid; grid-template-columns: minmax(0,1fr); }
-.pos-menu, .pos-cart { min-width: 0; }
-.pos-hidden-mobile { display: none; }
+.pos-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.pos-menu,
+.pos-cart {
+  min-width: 0;
+}
+.pos-hidden-mobile {
+  display: none;
+}
 @media (min-width: 1100px), (orientation: landscape) and (min-width: 740px) {
-  .pos-columns { grid-template-columns: minmax(0, 1.4fr) minmax(280px, .8fr); }
-  .pos-hidden-mobile { display: block; }
-  .pos-mobile-tabs { display: none; }
-  .pos-cart { position: sticky; top: 16px; max-height: calc(100dvh - 32px); overflow-y: auto; }
+  .pos-columns {
+    grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
+  }
+  .pos-hidden-mobile {
+    display: block;
+  }
+  .pos-mobile-tabs {
+    display: none;
+  }
+  .pos-cart {
+    position: sticky;
+    top: 16px;
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+  }
 }
 @media print {
-  .thermal-paper { color: #000 !important; overflow-wrap: anywhere; }
-  .thermal-paper p, .thermal-paper div { break-inside: avoid; }
-  .table tr { break-inside: avoid; }
-  .table thead { display: table-header-group; }
+  .thermal-paper {
+    color: #000 !important;
+    overflow-wrap: anywhere;
+  }
+  .thermal-paper p,
+  .thermal-paper div {
+    break-inside: avoid;
+  }
+  .table tr {
+    break-inside: avoid;
+  }
+  .table thead {
+    display: table-header-group;
+  }
 }

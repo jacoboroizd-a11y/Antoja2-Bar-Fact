@@ -150,7 +150,11 @@ export function Shell({
               <div key={n.href}>
                 {(n.href != "/settings" || ctx.role === "ADMIN") && (
                   <Link
-                    onClick={() => setOpen(false)}
+                    onClick={() => {
+                      setOpen(false);
+                      if (n.href === "/bar/pos")
+                        window.dispatchEvent(new Event("antoja2-new-order"));
+                    }}
                     href={n.href}
                     className={cn(
                       "flex gap-3 items-center px-3 py-2.5 rounded-xl text-[13px]",
@@ -279,7 +283,12 @@ export function Shell({
           <div className="flex items-center gap-3 shrink-0">
             {["ADMIN", "MANAGER", "CASHIER", "WAITER"].includes(ctx.role) && (
               <Button size="sm" asChild>
-                <Link href="/bar/pos">
+                <Link
+                  href="/bar/pos"
+                  onClick={() =>
+                    window.dispatchEvent(new Event("antoja2-new-order"))
+                  }
+                >
                   <Plus size={14} />
                   <span className="hidden sm:inline">Nueva orden</span>
                 </Link>

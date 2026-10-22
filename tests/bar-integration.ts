@@ -2,7 +2,8 @@ import "dotenv/config";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { db, transaction } from "../server/db";
-import { barCommand, daySummary } from "../server/bar";
+import { barCommand, daySummary, barSnapshot } from "../server/bar";
+import { salesForecast } from "../server/sales-forecast";
 import { barReport } from "../server/bar-report";
 import { createPayment, deletePayment, documentAction } from "../server/domain";
 import { pdfDocument } from "../server/pdf";
@@ -39,8 +40,31 @@ async function main() {
     companyName: "Bar Test",
     name: user.name,
   };
-  const cmd = (action: string, data: unknown, time = now) =>
-    barCommand(ctx, action, data, time);
+  const cmd = async (action: string, data: unknown, time = now) => {
+    const body = data as Record<string, unknown>;
+    if (
+      (action === "close" ||
+        (action === "open" && body.previousCounted !== undefined)) &&
+      !body.inventoryCounts
+    ) {
+      const drinks = await db.barProduct.findMany({
+        where: { companyId, kind: "DRINK", trackStock: true },
+      });
+      return barCommand(
+        ctx,
+        action,
+        {
+          ...body,
+          inventoryCounts: drinks.map((p) => ({
+            productId: p.id,
+            counted: p.stock.toString(),
+          })),
+        },
+        time,
+      );
+    }
+    return barCommand(ctx, action, data, time);
+  };
   const drink = (await cmd("category", {
     name: "Cervezas",
     kind: "DRINK",
@@ -383,14 +407,53 @@ async function main() {
     /permiso/,
   );
   await rejects(() => barReport(ctx, "day", "2026-02-30"), /válido/);
+  await rejects(
+    () =>
+      barCommand(
+        ctx,
+        "close",
+        { counted: "695" },
+        new Date("2026-10-24T06:35:00Z"),
+      ),
+    /conteo físico/,
+  );
+  const drinkBeforeClose = await db.barProduct.findUniqueOrThrow({
+    where: { id: beer.id },
+  });
   const close = (await cmd(
     "close",
-    { counted: "695" },
+    {
+      counted: "695",
+      inventoryCounts: [
+        {
+          productId: beer.id,
+          counted: drinkBeforeClose.stock.minus(1).toString(),
+        },
+      ],
+    },
     new Date("2026-10-24T06:35:00Z"),
   )) as { closeData: unknown };
   check(
     (close.closeData as { difference: string }).difference === "-5.00",
     "cierre calcula faltante 700 esperado vs 695 contado",
+  );
+  check(
+    (
+      await db.barProduct.findUniqueOrThrow({ where: { id: beer.id } })
+    ).stock.equals(drinkBeforeClose.stock),
+    "conteo de cierre no cambia existencias sin ajuste explícito",
+  );
+  const drinkClose = await db.businessDay.findUniqueOrThrow({
+    where: { id: day.id },
+  });
+  check(
+    Array.isArray((drinkClose.closeData as { beverages: unknown[] }).beverages),
+    "cierre conserva conteo físico de bebidas además del dinero",
+  );
+  check(
+    (drinkClose.closeData as { beverages: { difference: string }[] })
+      .beverages[0].difference === "-1.0000",
+    "cierre registra faltante físico de bebidas",
   );
   await rejects(
     () =>
@@ -524,6 +587,332 @@ async function main() {
   await rejects(
     () => cmd("expense", { ...expenseInput, requestId: randomUUID() }),
     /Abre una jornada/,
+  );
+  const forecast = await salesForecast(
+    ctx,
+    "2026-10-23",
+    new Date("2026-10-24T06:40:00Z"),
+  );
+  check(
+    forecast.day.count === 0 && forecast.day.actual === 600,
+    "proyección aislada por empresa excluye historial ajeno",
+  );
+  await rejects(() => salesForecast({ ...ctx, role: "WAITER" }), /permiso/);
+  await cmd("open", {
+    opening: "100",
+    overrideReason: "Prueba de personalización",
+  });
+  const wings = (await cmd("product", {
+    name: "Alitas",
+    sku: "ALAS",
+    kind: "FOOD",
+    categoryId: food.id,
+    cost: "30",
+    price: "100",
+    customizations: [
+      {
+        key: "bathed",
+        label: "Bañadas",
+        kind: "OPTION",
+        group: "Preparación",
+        required: true,
+        price: "0",
+      },
+      {
+        key: "dry",
+        label: "Salsa aparte",
+        kind: "OPTION",
+        group: "Preparación",
+        required: true,
+        price: "0",
+      },
+      { key: "extra", label: "queso", kind: "EXTRA", price: "25" },
+    ],
+  })) as { id: string };
+  const customized = (await cmd("create-order", { channel: "PICKUP" })) as {
+    id: string;
+  };
+  await rejects(
+    () =>
+      cmd("add-item", {
+        orderId: customized.id,
+        productId: wings.id,
+        quantity: 1,
+      }),
+    /Elegí una opción/,
+  );
+  await rejects(
+    () =>
+      cmd("add-item", {
+        orderId: customized.id,
+        productId: wings.id,
+        quantity: 1,
+        choices: ["bathed", "dry"],
+      }),
+    /solo una/,
+  );
+  const line = (await cmd("add-item", {
+    orderId: customized.id,
+    productId: wings.id,
+    quantity: 1,
+    choices: ["bathed", "extra"],
+  })) as { id: string };
+  const originalDispatch = (await cmd("dispatch", {
+    orderId: customized.id,
+    requestId: randomUUID(),
+  })) as { id: string; items: unknown };
+  const update = {
+    orderId: customized.id,
+    itemId: line.id,
+    productId: wings.id,
+    quantity: 2,
+    choices: ["dry"],
+    notes: "Bien cocidas",
+  };
+  const changed = (await cmd("update-item", update)) as {
+    id: string;
+    unitPrice: { toString: () => string };
+    correctionDispatchId: string;
+  };
+  check(
+    changed.id === line.id &&
+      changed.unitPrice.toString() === "100" &&
+      Boolean(changed.correctionDispatchId),
+    "edita cantidad y preparación, recalcula extras y emite corrección de cocina",
+  );
+  const oldDispatch = await db.kitchenDispatch.findUniqueOrThrow({
+    where: { id: originalDispatch.id },
+  });
+  check(
+    JSON.stringify(oldDispatch.items) ===
+      JSON.stringify(originalDispatch.items),
+    "edición no altera la comanda original",
+  );
+  const again = (await cmd("update-item", update)) as {
+    correctionDispatchId: string | null;
+  };
+  check(
+    again.correctionDispatchId === null,
+    "repetir cambios idénticos no duplica la corrección",
+  );
+  await cmd("add-item", {
+    orderId: customized.id,
+    productId: wings.id,
+    quantity: 1,
+    choices: ["bathed"],
+  });
+  await cmd("availability", { productId: wings.id, available: false });
+  await rejects(
+    () =>
+      cmd("add-item", {
+        orderId: customized.id,
+        productId: wings.id,
+        quantity: 1,
+        choices: ["bathed"],
+      }),
+    /no disponible/,
+  );
+  await rejects(
+    () => cmd("dispatch", { orderId: customized.id, requestId: randomUUID() }),
+    /agotados/,
+  );
+  await rejects(
+    () =>
+      barCommand(
+        { ...ctx, role: "WAITER" },
+        "availability",
+        { productId: wings.id, available: true },
+        now,
+      ),
+    /permiso/,
+  );
+  await cmd("availability", { productId: wings.id, available: true });
+  await cmd("pay", {
+    orderId: customized.id,
+    requestId: randomUUID(),
+    payments: [{ method: "CASH", amount: "50" }],
+  });
+  await rejects(
+    () => cmd("update-item", { ...update, quantity: 3 }),
+    /abonos|pago|congela/i,
+  );
+  check(
+    !(await db.companySettings.findUniqueOrThrow({ where: { companyId } }))
+      .fullInventory,
+    "inventario de ingredientes está desactivado por defecto",
+  );
+  await cmd("inventory-mode", {});
+  const raw = (await cmd("product", {
+    name: "Pollo crudo",
+    sku: "RAW",
+    kind: "FOOD",
+    categoryId: food.id,
+    ingredientOnly: true,
+    trackStock: true,
+    unit: "lb",
+    initialStock: "1",
+    cost: "10",
+    price: "0",
+  })) as { id: string };
+  const fried = (await cmd("product", {
+    name: "Pollo frito",
+    sku: "FRIED",
+    kind: "FOOD",
+    categoryId: food.id,
+    price: "20",
+    cost: "0",
+    components: [{ ingredientId: raw.id, quantity: "1" }],
+  })) as { id: string };
+  check(
+    (
+      await db.barProduct.findUniqueOrThrow({ where: { id: fried.id } })
+    ).cost.equals(10),
+    "receta calcula costo de una libra a C$10",
+  );
+  const plateOrder = (await cmd("create-order", { channel: "PICKUP" })) as {
+    id: string;
+  };
+  await cmd("add-item", {
+    orderId: plateOrder.id,
+    productId: fried.id,
+    quantity: 1,
+  });
+  const stockSnapshot = await barSnapshot(ctx);
+  check(
+    stockSnapshot.products.find((p) => p.id === raw.id)?.availableStock ===
+      "0.0000" &&
+      stockSnapshot.products.find((p) => p.id === fried.id)?.recipeAvailable ===
+        false,
+    "una libra queda reservada y el plato se marca agotado para nuevos pedidos",
+  );
+  const secondPlate = (await cmd("create-order", { channel: "PICKUP" })) as {
+    id: string;
+  };
+  await rejects(
+    () =>
+      cmd("add-item", {
+        orderId: secondPlate.id,
+        productId: fried.id,
+        quantity: 1,
+      }),
+    /Agotado/,
+  );
+  await cmd("pay", {
+    orderId: plateOrder.id,
+    requestId: randomUUID(),
+    payments: [{ method: "CASH", amount: "20" }],
+  });
+  check(
+    (
+      await db.barProduct.findUniqueOrThrow({ where: { id: raw.id } })
+    ).stock.equals(0),
+    "venta de C$20 consume 1 lb y deja inventario en cero",
+  );
+  const soldLine = await db.barOrderItem.findFirstOrThrow({
+    where: { orderId: plateOrder.id },
+  });
+  check(
+    (soldLine.inventoryParts as { unitCost: string }[])[0].unitCost === "10",
+    "venta conserva costo histórico de ingredientes",
+  );
+  await cmd("product", {
+    id: raw.id,
+    name: "Pollo crudo",
+    sku: "RAW",
+    kind: "FOOD",
+    categoryId: food.id,
+    ingredientOnly: true,
+    trackStock: true,
+    unit: "lb",
+    cost: "15",
+    price: "0",
+  });
+  const recipeReport = await barReport(ctx, "month", "2026-10");
+  check(
+    recipeReport.ingredientCosts.find((i) => i.name === "Pollo frito")?.cost ===
+      "10.00" &&
+      recipeReport.ingredientCosts.find((i) => i.name === "Pollo frito")
+        ?.margin === "10.00",
+    "reporte conserva costo de venta histórico aunque cambie el costo del insumo",
+  );
+  const storeBeer = (await cmd("product", {
+    name: "Cerveza almacén",
+    sku: "WH",
+    kind: "DRINK",
+    categoryId: drink.id,
+    cost: "10",
+    price: "20",
+    trackStock: true,
+    initialStock: "0",
+  })) as { id: string };
+  const purchase = {
+    requestId: randomUUID(),
+    productId: storeBeer.id,
+    operation: "PURCHASE",
+    quantity: "10",
+    boxes: true,
+    packSize: 24,
+    reason: "10 cajas",
+  };
+  await Promise.all([cmd("warehouse", purchase), cmd("warehouse", purchase)]);
+  const transfer = {
+    requestId: randomUUID(),
+    productId: storeBeer.id,
+    operation: "TO_SALE",
+    quantity: "2",
+    boxes: true,
+    packSize: 24,
+    reason: "Reposición barra",
+  };
+  await Promise.all([cmd("warehouse", transfer), cmd("warehouse", transfer)]);
+  const stored = await db.barProduct.findUniqueOrThrow({
+    where: { id: storeBeer.id },
+  });
+  check(
+    stored.warehouseStock.equals(192) && stored.stock.equals(48),
+    "10 cajas por 24 menos traslado de 2 cajas deja 192 en almacén y 48 para vender, sin duplicar reintentos",
+  );
+  await rejects(
+    () =>
+      cmd("warehouse", { ...transfer, requestId: randomUUID(), quantity: "9" }),
+    /insuficientes/,
+  );
+  const afterFailed = await db.barProduct.findUniqueOrThrow({
+    where: { id: storeBeer.id },
+  });
+  check(
+    afterFailed.stock.equals(48) && afterFailed.warehouseStock.equals(192),
+    "traslado fallido no modifica ninguno de los saldos",
+  );
+  const whOrder = (await cmd("create-order", { channel: "PICKUP" })) as {
+    id: string;
+  };
+  await cmd("add-item", {
+    orderId: whOrder.id,
+    productId: storeBeer.id,
+    quantity: 1,
+  });
+  await cmd("pay", {
+    orderId: whOrder.id,
+    requestId: randomUUID(),
+    payments: [{ method: "CASH", amount: "20" }],
+  });
+  const afterSale = await db.barProduct.findUniqueOrThrow({
+    where: { id: storeBeer.id },
+  });
+  check(
+    afterSale.stock.equals(47) && afterSale.warehouseStock.equals(192),
+    "venta descuenta del área de venta sin tocar almacén",
+  );
+  await rejects(
+    () =>
+      barCommand(
+        { ...ctx, role: "WAITER" },
+        "warehouse",
+        { ...transfer, requestId: randomUUID() },
+        now,
+      ),
+    /permiso/,
   );
   console.log(
     `${checks} verificaciones de bar pasaron: medianoche, concurrencia, pagos, combos, cocina, PDF, auditoría, cierre y permisos.`,

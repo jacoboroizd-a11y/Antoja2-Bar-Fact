@@ -138,6 +138,7 @@ model Membership {
 }
 
 model CompanySettings {
+  fullInventory Boolean @default(false)
   sandboxDemo Boolean @default(false)
   companyId         String   @id
   company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -616,8 +617,11 @@ model BarProduct {
   supplier Supplier? @relation(fields:[supplierId,companyId],references:[id,companyId],onDelete:Restrict)
   presentation String @default("")
   cost Decimal @default(0) @db.Decimal(18,2)
+  warehouseStock Decimal @default(0) @db.Decimal(18,4)
+  packSize Int @default(1)
   stock Decimal @default(0) @db.Decimal(18,4)
   minimum Decimal @default(0) @db.Decimal(18,4)
+  ingredientOnly Boolean @default(false)
   trackStock Boolean @default(false)
   available Boolean @default(true)
   image String @default("")
@@ -748,6 +752,7 @@ model InventoryMovement {
   company Company @relation(fields:[companyId],references:[id],onDelete:Restrict)
   productId String
   product BarProduct @relation(fields:[productId,companyId],references:[id,companyId],onDelete:Restrict)
+  location String @default("SALE")
   type String
   quantity Decimal @db.Decimal(18,4)
   balance Decimal @db.Decimal(18,4)
